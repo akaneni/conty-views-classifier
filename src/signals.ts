@@ -31,7 +31,7 @@ export function stepSpike(views: number[]): Signal {
     const returnsToBase = after.length > 0 && after[0]! <= T.STEP_RETURN_RATIO * baseline;
     if (!holds && !returnsToBase) continue; // há decaimento gradual
 
-    const ratio = Math.round((value / baseline) * 10) / 10;
+    const ratio = (Math.round((value / baseline) * 10) / 10).toString().replace(".", ",");
     return {
       name: "step_spike",
       triggered: true,
@@ -64,7 +64,7 @@ export function mechanicalRepeat(views: number[]): Signal {
     if (cv < T.MECH_MAX_CV || linear) {
       const what = linear
         ? `crescendo exatamente ${Math.abs(step)} views a cada hora`
-        : `com variação de apenas ${(cv * 100).toFixed(1)}% (audiência humana oscila bem mais)`;
+        : `com variação de apenas ${(cv * 100).toFixed(2).replace(".", ",")}% (audiência humana oscila bem mais)`;
       return {
         name: "mechanical_repeat",
         triggered: true,

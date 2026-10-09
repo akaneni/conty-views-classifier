@@ -64,6 +64,25 @@ function boughtPlateau(r: Rng, opts: { sd: number; mechanical: boolean; endAbrup
   );
 }
 
+
+/** Fundo humano com um platô comprado (ruído natural de 6%) e um bloco de taxa fixa em outro trecho da série. */
+function plateauPlusMechanical(r: Rng, mechanicalFirst: boolean): number[] {
+  const base = r.logUniform(100, 1000);
+  const plateauDur = r.int(10, 30), mechDur = r.int(8, 20), gap = r.int(6, 15);
+  const first = r.int(28, 40);
+  const plateauStart = mechanicalFirst ? first + mechDur + gap : first;
+  const mechStart = mechanicalFirst ? first : first + plateauDur + gap;
+  const n = Math.max(plateauStart + plateauDur, mechStart + mechDur) + r.int(20, 40);
+  const level = base * r.uniform(6, 15), mechLevel = base * r.uniform(1, 1.6);
+  return toInts(
+    background(r, n, base, 0.3, 0.1).map((v, h) => {
+      if (h >= plateauStart && h < plateauStart + plateauDur) return noisy(r, level, 0.06);
+      if (h >= mechStart && h < mechStart + mechDur) return mechLevel * (1 + 0.003 * r.gauss());
+      return v;
+    }),
+  );
+}
+
 export const FAMILIES: Family[] = [
   // --- legítimos ---
   {
@@ -137,17 +156,17 @@ export const FAMILIES: Family[] = [
   // --- suspeitos ---
   {
     name: "bought_step_plateau_drop", label: "suspicious", count: 50,
-    note: "pico comprado: degrau de 6x a 15x que se mantém 10 a 30 h e termina em queda seca (esperado: suspicious)",
+    note: "pico comprado: degrau de 6x a 15x que se mantém 10 a 30 h e termina em queda seca (esperado: inconclusive, um platô sozinho é um evento só)",
     make: (r) => boughtPlateau(r, { sd: 0.06, mechanical: false, endAbrupt: true }),
   },
   {
     name: "bought_mechanical_plateau", label: "suspicious", count: 50,
-    note: "degrau comprado com taxa fixa (variação de 0,3%) e saída suave (esperado: suspicious por degrau + repetição)",
+    note: "degrau comprado com taxa fixa (variação de 0,3%) e saída suave (esperado: inconclusive, a repetição está dentro do platô e conta como o mesmo evento)",
     make: (r) => boughtPlateau(r, { sd: 0, mechanical: true, endAbrupt: false }),
   },
   {
     name: "combo_all", label: "suspicious", count: 50,
-    note: "degrau + taxa fixa + queda seca (esperado: suspicious com 3 sinais)",
+    note: "degrau + taxa fixa + queda seca (esperado: inconclusive, os 3 sinais são o mesmo platô)",
     make: (r) => boughtPlateau(r, { sd: 0, mechanical: true, endAbrupt: true }),
   },
   {
@@ -191,6 +210,16 @@ export const FAMILIES: Family[] = [
     name: "bot_mimics_organic", label: "suspicious", count: 50,
     note: "EVASIVA: bots programados para reproduzir a curva de um viral (rampa e cauda) com ruído (esperado: organic, não detectado)",
     make: (r) => viralCurve(r, 0.12),
+  },
+  {
+    name: "mechanical_before_plateau", label: "suspicious", count: 50,
+    note: "taxa fixa por 8 a 20 h e, depois, um platô comprado em outro trecho (esperado: suspicious, dois eventos independentes)",
+    make: (r) => plateauPlusMechanical(r, true),
+  },
+  {
+    name: "mechanical_after_plateau", label: "suspicious", count: 50,
+    note: "platô comprado e, depois, taxa fixa por 8 a 20 h em outro trecho (esperado: suspicious, dois eventos independentes)",
+    make: (r) => plateauPlusMechanical(r, false),
   },
 ];
 

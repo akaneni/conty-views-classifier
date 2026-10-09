@@ -1,4 +1,4 @@
-import { abruptDrop, mechanicalRepeat, stepSpike } from "./signals.ts";
+import { abruptDrop, elevatedFrom, mechanicalRepeat, plateauBefore, stepSpike, type Interval } from "./signals.ts";
 import * as T from "./thresholds.ts";
 import type { Group, Signal, Verdict } from "./types.ts";
 
@@ -13,6 +13,20 @@ function samePlateau(step: Signal, drop: Signal): boolean {
   if (!step.triggered || !drop.triggered) return false;
   const gap = drop.evidence!.hour_index - step.evidence!.hour_index;
   return gap > 0 && gap <= T.PLATEAU_MAX_HOURS;
+}
+
+/**
+ * Onde está o platô. "Fora do platô" = janela de repetição mecânica que não toca nenhuma
+ * dessas horas. Platô do mesmo evento: de a hora do salto até a hora anterior à queda.
+ * Salto sem queda ligada: do salto até voltar a <= 2x a base. Queda sem salto ligado: o
+ * patamar > 3x a base imediatamente antes da queda.
+ */
+function plateauIntervals(views: number[], step: Signal, drop: Signal): Interval[] {
+  if (samePlateau(step, drop)) return [[step.evidence!.hour_index, drop.evidence!.hour_index - 1]];
+  const out: Interval[] = [];
+  if (step.triggered) out.push(elevatedFrom(views, step.evidence!.hour_index, step.evidence!.baseline));
+  if (drop.triggered) out.push(plateauBefore(views, drop.evidence!.hour_index, drop.evidence!.baseline));
+  return out;
 }
 
 function buildGroups(step: Signal, mech: Signal, drop: Signal): Group[] {
@@ -75,9 +89,12 @@ export function classify(views: number[]): Verdict {
   }
 
   const step = stepSpike(views);
-  const mech = mechanicalRepeat(views);
   const drop = abruptDrop(views);
-  const signals: Signal[] = [step, mech, drop];
+  // A repetição mecânica só é um segundo evento se estiver fora do platô.
+  const mechAny = mechanicalRepeat(views);
+  const mech = mechanicalRepeat(views, plateauIntervals(views, step, drop));
+  const mechInside = mechAny.triggered && !mech.triggered;
+  const signals: Signal[] = [step, mech.triggered ? mech : mechAny, drop];
   const groups = buildGroups(step, mech, drop);
   const hit = groups.filter((g) => g.triggered);
   const texts = eventTexts(groups, step, mech, drop);
@@ -100,7 +117,12 @@ export function classify(views: number[]): Verdict {
         : `Repetição mecânica isolada também pode vir de um canal grande e estável ou de dados arredondados pela plataforma, então não basta para acusar.`;
     return {
       classification: "inconclusive",
-      reason: `Prefiro não acusar: apareceu só um evento, ${texts[0]}. ${why} ${NOT_ENOUGH}`,
+      reason:
+        `Prefiro não acusar: apareceu só um evento, ${texts[0]}. ` +
+        (mechInside
+          ? `A repetição mecânica caiu dentro do próprio platô (${mechAny.description}), então faz parte do mesmo evento e não vale como segundo. `
+          : "") +
+        `${why} ${NOT_ENOUGH}`,
       signals,
       groups,
     };

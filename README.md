@@ -60,9 +60,9 @@ Dois exemplos, ambos `inconclusive`:
 
 Dataset sintético, reproduzível: PRNG mulberry32 com seed fixa (`20260101`), um gerador por família, tamanhos fixos (100 por família legítima, 50 por suspeita; os totais saem do comando), nenhuma chamada de rede. Os números abaixo ficam entre marcadores e **o teste `test/readme.test.ts` falha se divergirem do medido por `npm run dataset`**.
 
-- **Taxa de falso positivo** (legítimos `suspicious` / legítimos): <!-- fp-rate:start -->150 de 1200 legítimos classificados como suspicious (12,50%)<!-- fp-rate:end -->
-- **Inconclusive entre legítimos** (não escondido): <!-- legit-inconclusive:start -->437 de 1200 legítimos classificados como inconclusive (36,42%)<!-- legit-inconclusive:end -->
-- **Detecção nos suspeitos**: <!-- detection:start -->101 de 400 suspeitos classificados como suspicious (25,25%); 193 inconclusive (48,25%); 106 passaram como organic (26,50%)<!-- detection:end -->
+- **Taxa de falso positivo** (legítimos `suspicious` / legítimos): <!-- fp-rate:start -->0 de 1200 legítimos classificados como suspicious (0,00%)<!-- fp-rate:end -->
+- **Inconclusive entre legítimos** (não escondido): <!-- legit-inconclusive:start -->587 de 1200 legítimos classificados como inconclusive (48,92%)<!-- legit-inconclusive:end -->
+- **Detecção nos suspeitos**: <!-- detection:start -->100 de 500 suspeitos classificados como suspicious (20,00%); 294 inconclusive (58,80%); 106 passaram como organic (21,20%)<!-- detection:end -->
 
 Por família:
 
@@ -76,26 +76,28 @@ Por família:
 | old_video_decay | legítimo | 100 | 100 | 0 | 0 |
 | plausible_peak | legítimo | 100 | 98 | 2 | 0 |
 | plateau_live_frontpage | legítimo | 100 | 0 | 100 | 0 |
-| weekly_event | legítimo | 100 | 0 | 99 | 1 |
+| weekly_event | legítimo | 100 | 0 | 100 | 0 |
 | low_volume_plateau | legítimo | 100 | 33 | 67 | 0 |
-| plateau_noise_2pct | legítimo | 100 | 0 | 16 | 84 |
-| plateau_noise_3pct | legítimo | 100 | 0 | 50 | 50 |
-| plateau_noise_4pct | legítimo | 100 | 0 | 85 | 15 |
-| bought_step_plateau_drop | suspeito | 50 | 0 | 49 | 1 |
-| bought_mechanical_plateau | suspeito | 50 | 0 | 0 | 50 |
-| combo_all | suspeito | 50 | 0 | 0 | 50 |
+| plateau_noise_2pct | legítimo | 100 | 0 | 100 | 0 |
+| plateau_noise_3pct | legítimo | 100 | 0 | 100 | 0 |
+| plateau_noise_4pct | legítimo | 100 | 0 | 100 | 0 |
+| bought_step_plateau_drop | suspeito | 50 | 0 | 50 | 0 |
+| bought_mechanical_plateau | suspeito | 50 | 0 | 50 | 0 |
+| combo_all | suspeito | 50 | 0 | 50 | 0 |
 | mechanical_only | suspeito | 50 | 0 | 50 | 0 |
 | ramped_plateau_drop | suspeito | 50 | 11 | 39 | 0 |
 | single_hour_spike | suspeito | 50 | 0 | 50 | 0 |
 | diluted_spike | suspeito | 50 | 50 | 0 | 0 |
 | bot_mimics_organic | suspeito | 50 | 45 | 5 | 0 |
+| mechanical_before_plateau | suspeito | 50 | 0 | 0 | 50 |
+| mechanical_after_plateau | suspeito | 50 | 0 | 0 | 50 |
 <!-- families:end -->
 
 Famílias do dataset (lista gerada do código; o teste de coerência confere):
 
 <!-- families-list:start -->
 - Legítimas: `stable` (100), `slow_growth` (100), `viral_ramp_tail` (100), `seasonal_circadian` (100), `old_video_decay` (100), `plausible_peak` (100), `plateau_live_frontpage` (100), `weekly_event` (100), `low_volume_plateau` (100), `plateau_noise_2pct` (100), `plateau_noise_3pct` (100), `plateau_noise_4pct` (100).
-- Suspeitas: `bought_step_plateau_drop` (50), `bought_mechanical_plateau` (50), `combo_all` (50), `mechanical_only` (50), `ramped_plateau_drop` (50), `single_hour_spike` (50), `diluted_spike` (50), `bot_mimics_organic` (50).
+- Suspeitas: `bought_step_plateau_drop` (50), `bought_mechanical_plateau` (50), `combo_all` (50), `mechanical_only` (50), `ramped_plateau_drop` (50), `single_hour_spike` (50), `diluted_spike` (50), `bot_mimics_organic` (50), `mechanical_before_plateau` (50), `mechanical_after_plateau` (50).
 <!-- families-list:end -->
 
 As duas famílias suspeitas **evasivas** (`diluted_spike`, `bot_mimics_organic`) existem de propósito: o classificador não as pega.
@@ -105,9 +107,9 @@ As duas famílias suspeitas **evasivas** (`diluted_spike`, `bot_mimics_organic`)
 <!-- noise-fp:start -->
 | ruído do platô | total | suspicious (falso positivo) | inconclusive | organic |
 |---|---|---|---|---|
-| 2% | 100 | 84 (84,00%) | 16 | 0 |
-| 3% | 100 | 50 (50,00%) | 50 | 0 |
-| 4% | 100 | 15 (15,00%) | 85 | 0 |
+| 2% | 100 | 0 (0,00%) | 100 | 0 |
+| 3% | 100 | 0 (0,00%) | 100 | 0 |
+| 4% | 100 | 0 (0,00%) | 100 | 0 |
 <!-- noise-fp:end -->
 
 ### Leitura honesta dos números

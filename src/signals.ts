@@ -52,10 +52,17 @@ function windowStats(w: number[]): { mean: number; cv: number } {
 }
 
 /** Repetição mecânica: horas seguidas idênticas demais (ou crescendo sempre o mesmo tanto). */
-export function mechanicalRepeat(views: number[]): Signal {
+export type Interval = readonly [start: number, end: number];
+
+/**
+ * `excluded`: trechos (horas, inclusivos) que ficam de fora, por exemplo o platô.
+ * Uma janela de 8 h que encosta em qualquer hora de um trecho excluído é ignorada.
+ */
+export function mechanicalRepeat(views: number[], excluded: Interval[] = []): Signal {
   const n = T.MECH_MIN_HOURS;
   const seriesMedian = round(median(views));
   for (let s = 0; s + n <= views.length; s++) {
+    if (excluded.some(([a, b]) => s <= b && s + n - 1 >= a)) continue;
     const w = views.slice(s, s + n);
     const { mean, cv } = windowStats(w);
     if (mean < T.MECH_MIN_MEAN) continue;
@@ -74,6 +81,23 @@ export function mechanicalRepeat(views: number[]): Signal {
     }
   }
   return notTriggered("mechanical_repeat");
+}
+
+/**
+ * Trecho do platô (horas, inclusivo) ligado a um sinal de salto: do salto até a última hora
+ * seguida acima de STEP_RETURN_RATIO x a base.
+ */
+export function elevatedFrom(views: number[], start: number, baseline: number): Interval {
+  let end = start;
+  while (end + 1 < views.length && views[end + 1]! > T.STEP_RETURN_RATIO * baseline) end++;
+  return [start, end];
+}
+
+/** Trecho do platô ligado a uma queda: da primeira hora seguida acima de DROP_PLATEAU_RATIO x a base até a hora anterior à queda. */
+export function plateauBefore(views: number[], dropIndex: number, baseline: number): Interval {
+  let start = dropIndex - 1;
+  while (start - 1 >= 0 && views[start - 1]! > T.DROP_PLATEAU_RATIO * baseline) start--;
+  return [start, dropIndex - 1];
 }
 
 /** Queda abrupta: platô alto por algumas horas e depois perda de >= 80% em 1 hora. */

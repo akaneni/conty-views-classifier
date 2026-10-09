@@ -61,6 +61,49 @@ describe("classify: casos óbvios", () => {
   });
 });
 
+describe("classify: salto e queda só se fundem quando são do mesmo platô", () => {
+  const group = (v: ReturnType<typeof classify>) => v.groups.find((g) => g.name === "plateau_event")!;
+
+  it("pico de 1 hora na hora 30 e, bem depois, um platô com queda seca: platôs distintos, sem 'mesmo platô'", () => {
+    const s = [...human(30), 1800, ...human(49), ...noisy(8, 1500), 20, 18, ...human(10)];
+    const v = classify(s);
+    expect(names(v)).toEqual(["step_spike", "abrupt_drop"]);
+    expect(v.signals[0]!.evidence!.hour_index).toBe(30);
+    expect(v.signals[2]!.evidence!.hour_index).toBe(88);
+    expect(v.classification).toBe("inconclusive");
+    expect(v.reason).not.toMatch(/mesmo platô/i);
+    expect(v.reason).toMatch(/platôs separados/i);
+    expect(group(v).start_hour).toBeNull();
+    expect(group(v).end_hour).toBeNull();
+  });
+
+  it("queda na hora 37 e só depois um salto na hora 70: queda vem antes do salto, não é o mesmo platô", () => {
+    const s = [...human(30), 250, 450, 700, 900, 880, 910, 890, 30, ...human(32), ...noisy(8, 1500), ...human(20)];
+    const v = classify(s);
+    expect(v.signals[2]!.evidence!.hour_index).toBe(37);
+    expect(v.signals[0]!.evidence!.hour_index).toBe(70);
+    expect(v.classification).toBe("inconclusive");
+    expect(v.reason).not.toMatch(/mesmo platô/i);
+    const g = group(v);
+    expect(g.triggered).toBe(true);
+    expect(g.start_hour === null || g.end_hour === null || g.start_hour <= g.end_hour).toBe(true);
+  });
+
+  it("salto e queda a mais de 48 h de distância não são o mesmo platô", () => {
+    const s = [...human(30), ...noisy(55, 1500), ...human(30)];
+    const v = classify(s);
+    expect(names(v)).toContain("step_spike");
+    expect(names(v)).toContain("abrupt_drop");
+    expect(v.reason).not.toMatch(/mesmo platô/i);
+  });
+
+  it("salto e queda do mesmo platô trazem start_hour <= end_hour", () => {
+    const g = group(classify([...human(40), ...noisy(12, 1500), ...human(20)]));
+    expect(g.start_hour).toBe(40);
+    expect(g.end_hour).toBe(52);
+  });
+});
+
 describe("classify: regressão, platôs legítimos nunca viram suspicious", () => {
   // Sondas do revisor independente: live, front page, newsletter semanal, canal pequeno.
   const lcg = (seed: number) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);

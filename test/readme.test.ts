@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { classify } from "../src/classify.ts";
+import { DATASET_SEED, generateDataset } from "../src/dataset.ts";
 import { evaluate, extractMarker, readmeBlocks } from "../src/evaluate.ts";
 
 const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
@@ -14,9 +16,16 @@ describe("coerência do README com o dataset medido", () => {
     });
   }
 
-  it("a taxa de falso positivo do README é derivada de legítimos classificados suspicious / total de legítimos", () => {
-    const r = evaluate();
-    expect(r.false_positive_rate).toBe(r.legit.suspicious / r.legit.total);
-    expect(r.legit.total).toBe(900);
+  it("o número de falsos positivos escrito no README bate com uma contagem independente (classify direto, sem evaluate)", () => {
+    const legit = generateDataset(DATASET_SEED).filter((x) => x.label === "legit");
+    const fp = legit.filter((x) => classify(x.views).classification === "suspicious").length;
+    const m = extractMarker(readme, "fp-rate")!.match(/^(\d+) de (\d+) legítimos/);
+    expect(m, "formato do marcador fp-rate").not.toBeNull();
+    expect(Number(m![1])).toBe(fp);
+    expect(Number(m![2])).toBe(legit.length);
+  });
+
+  it("a tabela por família está entre marcadores no README", () => {
+    expect(extractMarker(readme, "families")).toContain("| plateau_live_frontpage |");
   });
 });

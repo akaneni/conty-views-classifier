@@ -26,8 +26,6 @@ if (process.argv.includes("--update-readme")) {
     if (!re.test(readme)) throw new Error(`marcador ${name} não encontrado no README`);
     readme = readme.replace(re, () => marker(name, text));
   }
-  const table = new RegExp(`<!-- families:start -->[\\s\\S]*?<!-- families:end -->`);
-  if (table.test(readme)) readme = readme.replace(table, () => marker("families", "\n" + familyTable(report) + "\n"));
   writeFileSync("README.md", readme);
   console.log("\nREADME.md atualizado entre os marcadores.");
 }

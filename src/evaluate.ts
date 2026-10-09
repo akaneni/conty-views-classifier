@@ -47,6 +47,7 @@ export function readmeBlocks(r: Report): Record<string, string> {
   return {
     "fp-rate": `${r.legit.suspicious} de ${r.legit.total} legítimos classificados como suspicious (${pct(r.legit.suspicious, r.legit.total)})`,
     "legit-inconclusive": `${r.legit.inconclusive} de ${r.legit.total} legítimos classificados como inconclusive (${pct(r.legit.inconclusive, r.legit.total)})`,
+    "families": `\n${familyTable(r)}\n`,
     "detection": `${r.suspicious.suspicious} de ${r.suspicious.total} suspeitos classificados como suspicious (${pct(r.suspicious.suspicious, r.suspicious.total)}); ${r.suspicious.inconclusive} inconclusive (${pct(r.suspicious.inconclusive, r.suspicious.total)}); ${r.suspicious.organic} passaram como organic (${pct(r.suspicious.organic, r.suspicious.total)})`,
   };
 }

@@ -82,3 +82,47 @@ describe("abrupt_drop", () => {
     expect(abruptDrop(s).triggered).toBe(false);
   });
 });
+
+describe("fronteiras dos limiares", () => {
+  const base = Array(30).fill(100);
+  const alt = (n: number) => Array.from({ length: n }, (_, i) => (i % 2 ? 90 : 10)); // fundo irregular e baixo
+
+  it("step_spike: 5,0x dispara e 4,99x não", () => {
+    expect(stepSpike([...base, ...Array(8).fill(500)]).triggered).toBe(true);
+    expect(stepSpike([...base, ...Array(8).fill(499)]).triggered).toBe(false);
+  });
+
+  it("step_spike: com o patamar em 80% do pico dispara; em 79% não", () => {
+    expect(stepSpike([...base, 1000, ...Array(6).fill(800), 100]).triggered).toBe(true);
+    expect(stepSpike([...base, 1000, ...Array(6).fill(790), 100]).triggered).toBe(false);
+  });
+
+  it("abrupt_drop: queda de 80% dispara e de 79% não", () => {
+    expect(abruptDrop([...base, 1000, 1000, 1000, 200, 200]).triggered).toBe(true);
+    expect(abruptDrop([...base, 1000, 1000, 1000, 210, 210]).triggered).toBe(false);
+  });
+
+  it("abrupt_drop: platô de 3 horas dispara e de 2 não; platô precisa estar acima de 3x a mediana", () => {
+    expect(abruptDrop([...base, 1000, 1000, 1000, 100]).triggered).toBe(true);
+    expect(abruptDrop([...base, 1000, 1000, 100]).triggered).toBe(false);
+    expect(abruptDrop([...base, 301, 301, 301, 20]).triggered).toBe(true);
+    expect(abruptDrop([...base, 300, 300, 300, 20]).triggered).toBe(false); // 300 não é > 3x
+  });
+
+  it("mechanical_repeat: média 50 dispara e 49 não", () => {
+    expect(mechanicalRepeat([...alt(20), ...Array(8).fill(50), ...alt(20)]).triggered).toBe(true);
+    expect(mechanicalRepeat([...alt(20), ...Array(8).fill(49), ...alt(20)]).triggered).toBe(false);
+  });
+
+  it("mechanical_repeat: variação de 1,9% dispara e de 2,0% não", () => {
+    const wave = (d: number) => Array.from({ length: 8 }, (_, i) => (i % 2 ? 1000 + d : 1000 - d));
+    expect(mechanicalRepeat([...alt(20), ...wave(19), ...alt(20)]).triggered).toBe(true);
+    expect(mechanicalRepeat([...alt(20), ...wave(20), ...alt(20)]).triggered).toBe(false);
+  });
+
+  it("abrupt_drop: queda de menos de 50 views/h absolutas não dispara (canal pequeno)", () => {
+    const small = Array(30).fill(10);
+    expect(abruptDrop([...small, 40, 40, 40, 5]).triggered).toBe(false);
+    expect(abruptDrop([...small, 100, 100, 100, 5]).triggered).toBe(true);
+  });
+});

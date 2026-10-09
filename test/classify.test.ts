@@ -161,6 +161,38 @@ describe("classify: regressão, platôs legítimos nunca viram suspicious", () =
   }
 });
 
+describe("classify: repetição fraca não vale como segundo evento", () => {
+  // 8 horas com variação de ~1,5%: abaixo de 2%, mas acima do limiar forte de 0,5%.
+  const weak = (level: number) => Array.from({ length: 8 }, (_, i) => Math.round(level * (1 + (i % 2 ? 0.015 : -0.015))));
+  const plateau = noisy(12, 1500);
+
+  it("platô + repetição fraca fora do platô: inconclusive, com o sinal marcado como fraco", () => {
+    const v = classify([...human(20), ...weak(150), ...human(10), ...plateau, ...human(20)]);
+    expect(v.classification).toBe("inconclusive");
+    expect(v.signals[1]).toMatchObject({ name: "mechanical_repeat", triggered: true, strength: "weak" });
+    expect(v.groups.filter((g) => g.triggered).map((g) => g.name)).toEqual(["plateau_event"]);
+    expect(v.reason).toMatch(/fraca/i);
+  });
+
+  it("a mesma série com repetição forte é suspicious", () => {
+    const v = classify([...human(20), ...Array(8).fill(150), ...human(10), ...plateau, ...human(20)]);
+    expect(v.classification).toBe("suspicious");
+    expect(v.signals[1]!.strength).toBe("strong");
+  });
+
+  it("repetição fraca sozinha não conta nenhum evento: organic, mas o motivo cita a evidência fraca", () => {
+    const v = classify([...human(30), ...weak(150), ...human(30)]);
+    expect(v.classification).toBe("organic");
+    expect(v.groups.every((g) => !g.triggered)).toBe(true);
+    expect(v.reason).toMatch(/fraca/i);
+  });
+
+  it("regra antiga (opção countWeakMechanical) acusaria a mesma série: é só para comparação nas taxas", () => {
+    const s = [...human(20), ...weak(150), ...human(10), ...plateau, ...human(20)];
+    expect(classify(s, { countWeakMechanical: true }).classification).toBe("suspicious");
+  });
+});
+
 describe("classify: limite conhecido", () => {
   it("live perfeitamente constante (0,3%) e platô comprado com taxa fixa são indistinguíveis: nenhum dos dois é acusado", () => {
     const g = (() => { let seed = 21; return () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296); })();

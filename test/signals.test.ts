@@ -145,3 +145,34 @@ describe("mechanical_repeat: bordas da exclusão do platô", () => {
     expect(mechanicalRepeat(series, [[23, 24]]).triggered).toBe(false);
   });
 });
+
+describe("mechanical_repeat: evidência forte x fraca", () => {
+  const alt = (n: number) => Array.from({ length: n }, (_, i) => (i % 2 ? 90 : 10));
+  const wave = (d: number) => Array.from({ length: 8 }, (_, i) => (i % 2 ? 1000 + d : 1000 - d));
+
+  it("variação de 0,4% é forte e de 0,5% é fraca (fronteira do CV forte)", () => {
+    expect(mechanicalRepeat([...alt(20), ...wave(4), ...alt(20)])).toMatchObject({ triggered: true, strength: "strong" });
+    expect(mechanicalRepeat([...alt(20), ...wave(5), ...alt(20)])).toMatchObject({ triggered: true, strength: "weak" });
+  });
+
+  it("variação de 1,9% é fraca e de 2,0% não dispara", () => {
+    expect(mechanicalRepeat([...alt(20), ...wave(19), ...alt(20)])).toMatchObject({ triggered: true, strength: "weak" });
+    expect(mechanicalRepeat([...alt(20), ...wave(20), ...alt(20)]).triggered).toBe(false);
+  });
+
+  it("diferenças exatamente constantes são fortes, mesmo com variação alta", () => {
+    const linear = Array.from({ length: 9 }, (_, i) => 300 + i * 25);
+    expect(mechanicalRepeat([...alt(20), ...linear, ...alt(10)])).toMatchObject({ triggered: true, strength: "strong" });
+  });
+
+  it("prefere a janela forte mais adiante a uma fraca que veio antes", () => {
+    const s = [...alt(20), ...wave(15), ...alt(10), ...Array(8).fill(400), ...alt(10)];
+    const r = mechanicalRepeat(s);
+    expect(r.strength).toBe("strong");
+    expect(r.evidence!.hour_index).toBe(38);
+  });
+
+  it("descrição de evidência fraca diz que não basta", () => {
+    expect(mechanicalRepeat([...alt(20), ...wave(15), ...alt(20)]).description).toMatch(/fraca/);
+  });
+});

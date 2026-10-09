@@ -33,11 +33,21 @@ describe("classify: casos óbvios", () => {
     expect(v.reason).not.toMatch(/step_spike|abrupt_drop|mechanical_repeat/);
   });
 
-  it("platô de taxa fixa (salto + repetição mecânica + queda) é suspicious, com motivo legível", () => {
-    const s = [...human(40), ...Array(12).fill(1500), ...human(20)];
+  it("platô de taxa fixa, mas com a repetição só dentro do platô, é UM evento: inconclusive", () => {
+    const v = classify([...human(40), ...Array(12).fill(1500), ...human(20)]);
+    expect(v.classification).toBe("inconclusive");
+    expect(names(v)).toEqual(["step_spike", "mechanical_repeat", "abrupt_drop"]);
+    expect(v.groups.filter((g) => g.triggered).map((g) => g.name)).toEqual(["plateau_event"]);
+    expect(v.reason).toMatch(/repetição mecânica caiu dentro do próprio platô/i);
+  });
+
+  it("platô comprado com repetição mecânica ANTES dele (outro trecho da série) é suspicious, com motivo legível", () => {
+    const s = [...human(20), ...Array(10).fill(150), ...human(10), ...Array(12).fill(1500), ...human(20)];
     const v = classify(s);
     expect(v.classification).toBe("suspicious");
     expect(v.groups.filter((g) => g.triggered).map((g) => g.name)).toEqual(["plateau_event", "mechanical_repeat"]);
+    expect(v.groups[1]!.start_hour).toBe(20);
+    expect(v.reason).toContain("hora 40");
     expect(v.reason).toContain("hora 40");
     expect(v.reason).toMatch(/salto de .*x/);
     expect(v.reason).toMatch(/queda de \d+%/);
@@ -45,12 +55,19 @@ describe("classify: casos óbvios", () => {
     expect(v.reason).not.toMatch(/step_spike|abrupt_drop|mechanical_repeat/);
   });
 
-  it("repetição mecânica após salto é suspicious", () => {
-    const s = [...human(40), ...Array(10).fill(900), 700, 500, 350, 260, 200, ...human(10)];
+  it("repetição mecânica DEPOIS do platô (outro trecho) é suspicious", () => {
+    const s = [...human(40), ...noisy(10, 900), ...human(12), ...Array(10).fill(160), ...human(10)];
     const v = classify(s);
     expect(v.classification).toBe("suspicious");
-    expect(names(v)).toContain("mechanical_repeat");
-    expect(names(v)).toContain("step_spike");
+    expect(v.groups[1]).toMatchObject({ triggered: true, start_hour: 62 });
+  });
+
+  it("repetição mecânica que começa exatamente na hora da queda já é outro trecho (fronteira)", () => {
+    const s = [...human(40), ...noisy(10, 1500), ...Array(10).fill(200), ...human(10)];
+    const v = classify(s);
+    expect(v.signals.find((x) => x.name === "abrupt_drop")!.evidence!.hour_index).toBe(50);
+    expect(v.groups[1]).toMatchObject({ triggered: true, start_hour: 50 });
+    expect(v.classification).toBe("suspicious");
   });
 
   it("platô alto com queda abrupta e ruído natural é inconclusive", () => {
@@ -125,14 +142,14 @@ describe("classify: regressão, platôs legítimos nunca viram suspicious", () =
 });
 
 describe("classify: limite conhecido", () => {
-  it("live perfeitamente constante (variação de 0,3%) é acusada: com esses dados é igual a taxa fixa comprada", () => {
-    const r = (seed: number) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
-    const g = r(21);
+  it("live perfeitamente constante (0,3%) e platô comprado com taxa fixa são indistinguíveis: nenhum dos dois é acusado", () => {
+    const g = (() => { let seed = 21; return () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296); })();
     const live = Array.from({ length: 8 }, () => Math.round(1000 * (1 + 0.003 * (g() - 0.5) * 2)));
-    const s = [...human(48), ...live, ...human(40)];
-    const v = classify(s);
-    expect(v.groups.filter((x) => x.triggered).map((x) => x.name)).toEqual(["plateau_event", "mechanical_repeat"]);
-    expect(v.classification).toBe("suspicious");
+    const v = classify([...human(48), ...live, ...human(40)]);
+    expect(names(v)).toContain("mechanical_repeat");
+    expect(v.groups.filter((x) => x.triggered).map((x) => x.name)).toEqual(["plateau_event"]);
+    expect(v.classification).toBe("inconclusive");
+    expect(classify([...human(48), ...Array(8).fill(1000), ...human(40)]).classification).toBe("inconclusive");
   });
 });
 

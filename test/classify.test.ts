@@ -62,6 +62,14 @@ describe("classify: casos óbvios", () => {
     expect(v.groups[1]).toMatchObject({ triggered: true, start_hour: 62 });
   });
 
+  it("repetição mecânica que termina 1 hora antes do salto está fora do platô (fronteira)", () => {
+    const s = [...human(20), ...Array(8).fill(150), ...noisy(12, 1500), ...human(20)];
+    const v = classify(s);
+    expect(v.signals.find((x) => x.name === "step_spike")!.evidence!.hour_index).toBe(28);
+    expect(v.groups[1]).toMatchObject({ triggered: true, start_hour: 20 });
+    expect(v.classification).toBe("suspicious");
+  });
+
   it("repetição mecânica que começa exatamente na hora da queda já é outro trecho (fronteira)", () => {
     const s = [...human(40), ...noisy(10, 1500), ...Array(10).fill(200), ...human(10)];
     const v = classify(s);
@@ -89,7 +97,7 @@ describe("classify: salto e queda só se fundem quando são do mesmo platô", ()
     expect(v.signals[2]!.evidence!.hour_index).toBe(88);
     expect(v.classification).toBe("inconclusive");
     expect(v.reason).not.toMatch(/mesmo platô/i);
-    expect(v.reason).toMatch(/platôs separados/i);
+    expect(v.reason).toMatch(/distantes demais/i);
     expect(group(v).start_hour).toBeNull();
     expect(group(v).end_hour).toBeNull();
   });
@@ -106,12 +114,24 @@ describe("classify: salto e queda só se fundem quando são do mesmo platô", ()
     expect(g.start_hour === null || g.end_hour === null || g.start_hour <= g.end_hour).toBe(true);
   });
 
-  it("salto e queda a mais de 48 h de distância não são o mesmo platô", () => {
+  it("platô único de 55 h (queda a mais de 48 h do salto) não é descrito como 'dois platôs'", () => {
     const s = [...human(30), ...noisy(55, 1500), ...human(30)];
     const v = classify(s);
     expect(names(v)).toContain("step_spike");
     expect(names(v)).toContain("abrupt_drop");
-    expect(v.reason).not.toMatch(/mesmo platô/i);
+    expect(v.reason).toMatch(/distantes demais/i);
+    expect(v.reason).not.toMatch(/dois platôs|platôs separados|são o mesmo platô/i);
+    const g = v.groups[0]!;
+    expect(g.start_hour).toBeNull();
+    expect(g.end_hour).toBeNull();
+    expect(v.classification).toBe("inconclusive");
+  });
+
+  it("queda antes do salto: eventos separados, sem afirmar platô único", () => {
+    const s = [...human(30), 250, 450, 700, 900, 880, 910, 890, 30, ...human(32), ...noisy(8, 1500), ...human(20)];
+    const v = classify(s);
+    expect(v.reason).toMatch(/antes do salto/i);
+    expect(v.reason).not.toMatch(/são o mesmo platô/i);
   });
 
   it("salto e queda do mesmo platô trazem start_hour <= end_hour", () => {

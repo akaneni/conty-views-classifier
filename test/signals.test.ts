@@ -126,3 +126,22 @@ describe("fronteiras dos limiares", () => {
     expect(abruptDrop([...small, 100, 100, 100, 5]).triggered).toBe(true);
   });
 });
+
+describe("mechanical_repeat: bordas da exclusão do platô", () => {
+  const alt = (n: number) => Array.from({ length: n }, (_, i) => (i % 2 ? 90 : 10));
+  const series = [...alt(20), ...Array(8).fill(150), ...alt(20)]; // bloco constante nas horas 20 a 27
+
+  it("janela que encosta na primeira hora do trecho excluído fica de fora do cálculo", () => {
+    expect(mechanicalRepeat(series, [[27, 40]]).triggered).toBe(false);
+    expect(mechanicalRepeat(series, [[28, 40]]).triggered).toBe(true);
+  });
+
+  it("janela que encosta na última hora do trecho excluído fica de fora do cálculo", () => {
+    expect(mechanicalRepeat(series, [[10, 20]]).triggered).toBe(false);
+    expect(mechanicalRepeat(series, [[10, 19]]).triggered).toBe(true);
+  });
+
+  it("trecho excluído dentro da janela também a descarta", () => {
+    expect(mechanicalRepeat(series, [[23, 24]]).triggered).toBe(false);
+  });
+});

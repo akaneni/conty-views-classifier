@@ -216,5 +216,5 @@ Modelo de ML, dados reais de redes sociais, autenticação, persistência.
 
 ## Uso de IA
 - **Feito com IA:** especificação, código e testes escritos com Claude Code (Claude Sonnet 5.5), a partir de decisões do autor tomadas em entrevista (grill) e registradas em `.specs/`.
-- **Revisado pelo autor:** TODO(preencher após a revisão humana do diff).
-- **Revisão independente:** TODO(preencher após a revisão por agente de contexto limpo).
+- **Revisado pelo autor:** as decisões de regra foram tomadas pelo autor em entrevista (grill) e revisadas por ele. O autor **não leu o código linha a linha**; leu os relatórios de revisão e os pontos de risco apontados.
+- **Revisão independente:** 4 revisões independentes por agente de IA de contexto limpo, em modo somente leitura, que rodou os testes, seguiu o README do zero, tentou quebrar as regras com casos adversariais e fez mutações. Os achados foram corrigidos; os ajustes de texto, medições e teste da fronteira de 48 h feitos depois da última revisão não foram reavaliados por revisor, só pelos testes.

@@ -61,6 +61,7 @@ export type Interval = readonly [start: number, end: number];
 export function mechanicalRepeat(views: number[], excluded: Interval[] = []): Signal {
   const n = T.MECH_MIN_HOURS;
   const seriesMedian = round(median(views));
+  let firstWeak: Signal | undefined;
   for (let s = 0; s + n <= views.length; s++) {
     if (excluded.some(([a, b]) => s <= b && s + n - 1 >= a)) continue;
     const w = views.slice(s, s + n);
@@ -68,18 +69,32 @@ export function mechanicalRepeat(views: number[], excluded: Interval[] = []): Si
     if (mean < T.MECH_MIN_MEAN) continue;
     const step = w[1]! - w[0]!;
     const linear = step !== 0 && w.every((v, k) => k === 0 || v - w[k - 1]! === step);
-    if (cv < T.MECH_MAX_CV || linear) {
-      const what = linear
-        ? `crescendo exatamente ${Math.abs(step)} views a cada hora`
-        : `com variação de apenas ${(cv * 100).toFixed(2).replace(".", ",")}% (audiência humana oscila bem mais)`;
-      return {
-        name: "mechanical_repeat",
-        triggered: true,
-        description: `${n} horas seguidas a partir da hora ${s} com cerca de ${round(mean)} views/h, ${what}`,
-        evidence: { hour_index: s, value: round(mean), baseline: seriesMedian },
-      };
-    }
+    const strong = linear || cv < T.MECH_STRONG_CV;
+    if (!strong && !(cv < T.MECH_MAX_CV)) continue;
+    const variation = linear
+      ? `crescendo exatamente ${Math.abs(step)} views a cada hora`
+      : `com variação de apenas ${(cv * 100).toFixed(2).replace(".", ",")}%`;
+    const found: Signal = strong
+      ? {
+          name: "mechanical_repeat",
+          triggered: true,
+          strength: "strong",
+          description: `${n} horas seguidas a partir da hora ${s} com cerca de ${round(mean)} views/h, ${variation} (audiência humana oscila bem mais)`,
+          evidence: { hour_index: s, value: round(mean), baseline: seriesMedian },
+        }
+      : {
+          name: "mechanical_repeat",
+          triggered: true,
+          strength: "weak",
+          description:
+            `${n} horas seguidas a partir da hora ${s} com cerca de ${round(mean)} views/h, ${variation}; ` +
+            `é evidência fraca (acontece por acaso em canais grandes e estáveis) e não basta para acusar`,
+          evidence: { hour_index: s, value: round(mean), baseline: seriesMedian },
+        };
+    if (strong) return found; // uma janela forte vale mais que qualquer fraca anterior
+    firstWeak ??= found;
   }
+  if (firstWeak) return firstWeak;
   return notTriggered("mechanical_repeat");
 }
 

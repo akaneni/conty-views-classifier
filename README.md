@@ -68,40 +68,40 @@ Dois exemplos, ambos `inconclusive`:
 
 Dataset sintético, reproduzível: PRNG mulberry32 com seed fixa (`20260101`), um gerador por família, tamanhos fixos (100 por família legítima, 50 por suspeita; os totais saem do comando), nenhuma chamada de rede. Os números abaixo ficam entre marcadores e **o teste `test/readme.test.ts` falha se divergirem do medido por `npm run dataset`**.
 
-- **Taxa de falso positivo** (legítimos `suspicious` / legítimos): <!-- fp-rate:start -->724 de 2000 legítimos classificados como suspicious (36,20%)<!-- fp-rate:end -->
-- **Inconclusive entre legítimos** (não escondido): <!-- legit-inconclusive:start -->663 de 2000 legítimos classificados como inconclusive (33,15%)<!-- legit-inconclusive:end -->
-- **Detecção nos suspeitos**: <!-- detection:start -->100 de 500 suspeitos classificados como suspicious (20,00%); 283 inconclusive (56,60%); 117 passaram como organic (23,40%)<!-- detection:end -->
+- **Taxa de falso positivo** (legítimos `suspicious` / legítimos): <!-- fp-rate:start -->165 de 2000 legítimos classificados como suspicious (8,25%)<!-- fp-rate:end -->
+- **Inconclusive entre legítimos** (não escondido): <!-- legit-inconclusive:start -->1214 de 2000 legítimos classificados como inconclusive (60,70%)<!-- legit-inconclusive:end -->
+- **Detecção nos suspeitos**: <!-- detection:start -->98 de 500 suspeitos classificados como suspicious (19,60%); 285 inconclusive (57,00%); 117 passaram como organic (23,40%)<!-- detection:end -->
 
 Por família:
 
 <!-- families:start -->
 | família | tipo | total | organic | inconclusive | suspicious |
 |---|---|---|---|---|---|
-| stable | legítimo | 100 | 96 | 4 | 0 |
-| slow_growth | legítimo | 100 | 99 | 1 | 0 |
-| viral_ramp_tail | legítimo | 100 | 87 | 13 | 0 |
+| stable | legítimo | 100 | 100 | 0 | 0 |
+| slow_growth | legítimo | 100 | 100 | 0 | 0 |
+| viral_ramp_tail | legítimo | 100 | 88 | 12 | 0 |
 | seasonal_circadian | legítimo | 100 | 100 | 0 | 0 |
 | old_video_decay | legítimo | 100 | 100 | 0 | 0 |
-| plausible_peak | legítimo | 100 | 98 | 2 | 0 |
+| plausible_peak | legítimo | 100 | 100 | 0 | 0 |
 | plateau_live_frontpage | legítimo | 100 | 0 | 100 | 0 |
 | weekly_event | legítimo | 100 | 0 | 100 | 0 |
 | low_volume_plateau | legítimo | 100 | 33 | 67 | 0 |
 | plateau_noise_2pct | legítimo | 100 | 0 | 100 | 0 |
 | plateau_noise_3pct | legítimo | 100 | 0 | 100 | 0 |
 | plateau_noise_4pct | legítimo | 100 | 0 | 100 | 0 |
-| risk_stable_bg_3pct | legítimo | 100 | 0 | 0 | 100 |
-| risk_stable_bg_4pct | legítimo | 100 | 0 | 21 | 79 |
-| risk_stable_bg_5pct | legítimo | 100 | 0 | 46 | 54 |
-| risk_huge_channel_spike | legítimo | 100 | 0 | 0 | 100 |
+| risk_stable_bg_3pct | legítimo | 100 | 0 | 100 | 0 |
+| risk_stable_bg_4pct | legítimo | 100 | 0 | 100 | 0 |
+| risk_stable_bg_5pct | legítimo | 100 | 0 | 100 | 0 |
+| risk_huge_channel_spike | legítimo | 100 | 0 | 83 | 17 |
 | risk_gap_fill_live | legítimo | 100 | 0 | 0 | 100 |
-| risk_rounded_100_live | legítimo | 100 | 0 | 1 | 99 |
-| risk_rounded_1000_live | legítimo | 100 | 0 | 8 | 92 |
-| risk_weekly_2w_noise3 | legítimo | 100 | 0 | 0 | 100 |
+| risk_rounded_100_live | legítimo | 100 | 0 | 100 | 0 |
+| risk_rounded_1000_live | legítimo | 100 | 0 | 53 | 47 |
+| risk_weekly_2w_noise3 | legítimo | 100 | 0 | 99 | 1 |
 | bought_step_plateau_drop | suspeito | 50 | 0 | 50 | 0 |
 | bought_mechanical_plateau | suspeito | 50 | 0 | 50 | 0 |
-| combo_all | suspeito | 50 | 0 | 49 | 1 |
+| combo_all | suspeito | 50 | 0 | 50 | 0 |
 | mechanical_only | suspeito | 50 | 0 | 50 | 0 |
-| ramped_plateau_drop | suspeito | 50 | 21 | 28 | 1 |
+| ramped_plateau_drop | suspeito | 50 | 21 | 29 | 0 |
 | single_hour_spike | suspeito | 50 | 1 | 49 | 0 |
 | diluted_spike | suspeito | 50 | 50 | 0 | 0 |
 | bot_mimics_organic | suspeito | 50 | 45 | 5 | 0 |
@@ -117,6 +117,28 @@ Famílias do dataset (lista gerada do código; o teste de coerência confere):
 <!-- families-list:end -->
 
 As duas famílias suspeitas **evasivas** (`diluted_spike`, `bot_mimics_organic`) existem de propósito: o classificador não as pega.
+
+**Falso positivo em cenários de risco para a repetição mecânica** (série legítima com fundo regular, mais uma live ou um pico). "Antes" é a regra que contava repetição com variação < 2%; "depois" é a regra atual (só variação < 0,5% ou diferenças exatamente constantes contam como evento). Ambos são calculados pelo comando e conferidos pelo teste:
+
+<!-- scenarios:start -->
+| cenário legítimo | total | acusados antes (regra de 2%) | acusados depois (regra atual) | inconclusive depois | organic depois |
+|---|---|---|---|---|---|
+| risk_stable_bg_3pct | 100 | 100 (100,00%) | 0 (0,00%) | 100 | 0 |
+| risk_stable_bg_4pct | 100 | 79 (79,00%) | 0 (0,00%) | 100 | 0 |
+| risk_stable_bg_5pct | 100 | 54 (54,00%) | 0 (0,00%) | 100 | 0 |
+| risk_huge_channel_spike | 100 | 100 (100,00%) | 17 (17,00%) | 83 | 0 |
+| risk_gap_fill_live | 100 | 100 (100,00%) | 100 (100,00%) | 0 | 0 |
+| risk_rounded_100_live | 100 | 99 (99,00%) | 0 (0,00%) | 100 | 0 |
+| risk_rounded_1000_live | 100 | 92 (92,00%) | 47 (47,00%) | 53 | 0 |
+| risk_weekly_2w_noise3 | 100 | 100 (100,00%) | 1 (1,00%) | 99 | 0 |
+<!-- scenarios:end -->
+
+Totais antes/depois, no dataset inteiro:
+
+<!-- before-after:start -->
+- Antes (repetição de CV < 2% conta): FP 724/2000 (36,20%), inconclusive entre legítimos 663/2000 (33,15%), detecção 100/500 (20,00%)
+- Depois (só CV < 0,5% ou diferença constante): FP 165/2000 (8,25%), inconclusive entre legítimos 1214/2000 (60,70%), detecção 98/500 (19,60%)
+<!-- before-after:end -->
 
 **Falso positivo por nível de ruído do platô legítimo.** Um platô legítimo muito regular (live, destaque, evento semanal) com ruído de 2% a 4% é o caso mais perigoso, porque a variação cai perto do limiar de repetição mecânica (2%):
 

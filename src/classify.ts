@@ -82,7 +82,15 @@ function eventTexts(groups: Group[], step: Signal, mech: Signal, drop: Signal): 
   return out;
 }
 
-export function classify(views: number[]): Verdict {
+export interface ClassifyOptions {
+  /**
+   * Regra ANTIGA, só para comparação nas taxas do dataset: repetição fraca (CV < 2%) também
+   * conta como segundo evento. A API nunca liga isso.
+   */
+  countWeakMechanical?: boolean;
+}
+
+export function classify(views: number[], options: ClassifyOptions = {}): Verdict {
   if (views.length < T.MIN_SERIES_LENGTH) {
     const none = (name: Signal["name"]): Signal => ({ name, triggered: false, description: "", evidence: null });
     const signals = [none("step_spike"), none("mechanical_repeat"), none("abrupt_drop")];
@@ -101,9 +109,11 @@ export function classify(views: number[]): Verdict {
   // A repetição mecânica só é um segundo evento se estiver fora do platô.
   const mechAny = mechanicalRepeat(views);
   const mech = mechanicalRepeat(views, plateauIntervals(views, step, drop));
-  const mechInside = mechAny.triggered && !mech.triggered;
+  const counts = (m: Signal) => m.triggered && (m.strength === "strong" || options.countWeakMechanical === true);
+  const mechInside = counts(mechAny) && !counts(mech);
+  const weakOnly = mech.triggered && !counts(mech); // só evidência fraca fora do platô
   const signals: Signal[] = [step, mech.triggered ? mech : mechAny, drop];
-  const groups = buildGroups(step, mech, drop);
+  const groups = buildGroups(step, counts(mech) ? mech : { ...mech, triggered: false }, drop);
   const hit = groups.filter((g) => g.triggered);
   const texts = eventTexts(groups, step, mech, drop);
 
@@ -130,6 +140,7 @@ export function classify(views: number[]): Verdict {
         (mechInside
           ? `A repetição mecânica caiu dentro do próprio platô (${mechAny.description}), então faz parte do mesmo evento e não vale como segundo. `
           : "") +
+        (weakOnly ? `Houve também uma repetição fraca (${mech.description}); ela não conta como segundo evento. ` : "") +
         `${why} ${NOT_ENOUGH}`,
       signals,
       groups,
@@ -140,6 +151,7 @@ export function classify(views: number[]): Verdict {
     reason:
       `Nenhum dos três sinais procurados apareceu (salto brusco sem subida gradual, ` +
       `${T.MECH_MIN_HOURS} horas seguidas idênticas, queda seca depois de patamar alto). ` +
+      (weakOnly ? `Houve uma repetição fraca (${mech.description}), que sozinha não conta. ` : "") +
       `A curva é compatível com audiência humana, dentro do que este classificador consegue checar.`,
     signals,
     groups,

@@ -17,7 +17,9 @@ console.log(`seed ${DATASET_SEED}: ${samples.length} séries (${report.legit.tot
 console.log(`Taxa de falso positivo: ${blocks["fp-rate"]}`);
 console.log(`Inconclusive entre legítimos: ${blocks["legit-inconclusive"]}`);
 console.log(`Detecção nos suspeitos: ${blocks["detection"]}`);
-console.log("\n" + familyTable(report));
+console.log("\nAntes/depois da regra de repetição forte:" + blocks["before-after"]);
+console.log(familyTable(report));
+console.log(blocks["scenarios"]);
 
 if (process.argv.includes("--update-readme")) {
   let readme = readFileSync("README.md", "utf8");

@@ -12,6 +12,8 @@ export interface Signal {
   /** Frase em PT-BR descrevendo o que foi visto (vazia se não disparou). */
   description: string;
   evidence: Evidence | null;
+  /** Só em mechanical_repeat disparado: forte conta para acusar, fraca só aparece para explicar. */
+  strength?: "strong" | "weak";
 }
 
 export type Classification = "organic" | "suspicious" | "inconclusive";

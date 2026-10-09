@@ -31,8 +31,16 @@ export const STEP_RETURN_RATIO = 2;
 // --- mechanical_repeat: repetição mecânica ---
 /** Horas seguidas necessárias. */
 export const MECH_MIN_HOURS = 8;
-/** Coeficiente de variação (desvio/média) abaixo disso é "idêntico demais". */
+/** Coeficiente de variação (desvio/média) abaixo disso aparece como evidência FRACA (não conta para acusar). */
 export const MECH_MAX_CV = 0.02;
+/**
+ * Abaixo disso (ou com diferenças consecutivas exatamente constantes) a evidência é FORTE e
+ * pode contar como evento. Escolha do autor, após o revisor mostrar que 2% gera falso positivo
+ * por acaso em canais estáveis: contagem puramente aleatória (Poisson) já varia 1/raiz(média),
+ * ou seja, 0,5% só seria "natural" acima de ~40 mil views/h; abaixo disso, 0,5% é menos ruído
+ * do que o sorteio sozinho produziria. Não foi ajustado olhando o dataset.
+ */
+export const MECH_STRONG_CV = 0.005;
 /** Média mínima (views/h) na janela; abaixo disso contagem baixa repete por acaso (ex.: 0 views). */
 export const MECH_MIN_MEAN = 50;
 

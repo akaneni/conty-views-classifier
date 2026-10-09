@@ -13,6 +13,8 @@ export interface Report {
   suspicious_inconclusive_rate: number;
   suspicious_missed_as_organic_rate: number;
   families: Record<string, Counts & { label: string }>;
+  /** Mesma avaliação com a regra antiga (repetição fraca, CV < 2%, também conta). Só para comparação. */
+  legacy: { legit: Counts; suspicious: Counts; families: Record<string, Counts> };
 }
 
 const empty = (): Counts => ({ total: 0, organic: 0, suspicious: 0, inconclusive: 0 });
@@ -21,11 +23,18 @@ const add = (c: Counts, k: Classification) => { c.total++; c[k]++; };
 export function evaluate(samples: Sample[] = generateDataset(DATASET_SEED), seed = DATASET_SEED): Report {
   const legit = empty(), sus = empty();
   const families: Report["families"] = {};
-  for (const f of FAMILIES) families[f.name] = { ...empty(), label: f.label };
+  const legacy: Report["legacy"] = { legit: empty(), suspicious: empty(), families: {} };
+  for (const f of FAMILIES) {
+    families[f.name] = { ...empty(), label: f.label };
+    legacy.families[f.name] = empty();
+  }
   for (const s of samples) {
     const k = classify(s.views).classification;
     add(s.label === "legit" ? legit : sus, k);
     add(families[s.family]!, k);
+    const old = classify(s.views, { countWeakMechanical: true }).classification;
+    add(s.label === "legit" ? legacy.legit : legacy.suspicious, old);
+    add(legacy.families[s.family]!, old);
   }
   return {
     seed,
@@ -37,6 +46,7 @@ export function evaluate(samples: Sample[] = generateDataset(DATASET_SEED), seed
     suspicious_inconclusive_rate: sus.inconclusive / sus.total,
     suspicious_missed_as_organic_rate: sus.organic / sus.total,
     families,
+    legacy,
   };
 }
 
@@ -48,6 +58,8 @@ export function readmeBlocks(r: Report): Record<string, string> {
     "fp-rate": `${r.legit.suspicious} de ${r.legit.total} legítimos classificados como suspicious (${pct(r.legit.suspicious, r.legit.total)})`,
     "legit-inconclusive": `${r.legit.inconclusive} de ${r.legit.total} legítimos classificados como inconclusive (${pct(r.legit.inconclusive, r.legit.total)})`,
     "noise-fp": noiseTable(r),
+    "scenarios": scenarioTable(r),
+    "before-after": beforeAfter(r),
     "families-list": familiesList(),
     "families": `\n${familyTable(r)}\n`,
     "detection": `${r.suspicious.suspicious} de ${r.suspicious.total} suspeitos classificados como suspicious (${pct(r.suspicious.suspicious, r.suspicious.total)}); ${r.suspicious.inconclusive} inconclusive (${pct(r.suspicious.inconclusive, r.suspicious.total)}); ${r.suspicious.organic} passaram como organic (${pct(r.suspicious.organic, r.suspicious.total)})`,
@@ -86,4 +98,24 @@ export function familiesList(): string {
   const fmt = (label: string) =>
     FAMILIES.filter((f) => f.label === label).map((f) => `\`${f.name}\` (${f.count})`).join(", ");
   return `\n- Legítimas: ${fmt("legit")}.\n- Suspeitas: ${fmt("suspicious")}.\n`;
+}
+
+/** Falso positivo por cenário de risco, antes (regra de 2%) e depois (regra atual). */
+export function scenarioTable(r: Report): string {
+  const rows = FAMILIES.filter((f) => f.name.startsWith("risk_")).map((f) => {
+    const now = r.families[f.name]!;
+    const old = r.legacy.families[f.name]!;
+    return `| ${f.name} | ${now.total} | ${old.suspicious} (${pct2(old.suspicious, old.total)}) | ${now.suspicious} (${pct2(now.suspicious, now.total)}) | ${now.inconclusive} | ${now.organic} |`;
+  });
+  return ["", "| cenário legítimo | total | acusados antes (regra de 2%) | acusados depois (regra atual) | inconclusive depois | organic depois |", "|---|---|---|---|---|---|", ...rows, ""].join("\n");
+}
+
+/** Taxas globais antes (regra de 2%) e depois, para o README mostrar a mudança sem esconder. */
+export function beforeAfter(r: Report): string {
+  const L = r.legacy;
+  const line = (tag: string, legit: Counts, sus: Counts) =>
+    `${tag}: FP ${legit.suspicious}/${legit.total} (${pct2(legit.suspicious, legit.total)}), ` +
+    `inconclusive entre legítimos ${legit.inconclusive}/${legit.total} (${pct2(legit.inconclusive, legit.total)}), ` +
+    `detecção ${sus.suspicious}/${sus.total} (${pct2(sus.suspicious, sus.total)})`;
+  return `\n- ${line("Antes (repetição de CV < 2% conta)", L.legit, L.suspicious)}\n- ${line("Depois (só CV < 0,5% ou diferença constante)", r.legit, r.suspicious)}\n`;
 }

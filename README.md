@@ -22,10 +22,10 @@ npm run dataset -- --update-readme   # reescreve só os números entre marcadore
 
 ```bash
 curl -s localhost:3000/classify -H 'content-type: application/json' \
-  -d '{"views_per_hour":[110,95,130,102,141,88,120,99,135,108,92,125,117,101,138,90,122,104,131,97,119,112,126,94,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,20,18,22]}'
+  -d '{"views_per_hour":[110,95,130,102,141,88,120,99,135,108,92,125,117,101,138,90,122,104,131,97,119,112,126,94,150,150,150,150,150,150,150,150,150,150,110,95,130,102,141,88,120,99,135,108,92,125,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,20,18,22]}'
 ```
 
-Resposta (resumida): `classification: "suspicious"`, `reason: "Suspeita: 2 eventos independentes de audiência não humana apareceram juntos. (1) um platô: salto de 13,5x na hora 24 (de cerca de 111 para 1500 views/h) sem subida gradual antes e sem queda gradual depois (o patamar se manteve); e queda de 99% em 1 hora na hora 36 (...). O salto e a queda são o mesmo platô e contam como um evento só. (2) 8 horas seguidas a partir da hora 24 com cerca de 1500 views/h, com variação de apenas 0,00% (...)."`.
+Resposta (resumida): `classification: "suspicious"`, `reason: "Suspeita: 2 eventos independentes de audiência não humana apareceram juntos. (1) um platô: salto de 11,3x na hora 46 (de cerca de 133 para 1500 views/h) sem subida gradual antes e sem queda gradual depois (o patamar se manteve); e queda de 99% em 1 hora na hora 58 (...). O salto e a queda são o mesmo platô e contam como um evento só. (2) 8 horas seguidas a partir da hora 24 com cerca de 150 views/h, com variação de apenas 0,00% (...)."` A repetição na hora 24 está **fora** do platô (horas 46 a 57); sem ela, o mesmo platô sozinho seria `inconclusive`.
 
 O corpo traz:
 - `signals`: os três sinais individuais, cada um com `name`, `triggered`, `description` (PT-BR) e `evidence: { hour_index, value, baseline }` (ou `null` quando não disparou).

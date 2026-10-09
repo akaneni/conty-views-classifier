@@ -47,6 +47,8 @@ export const DROP_MAX_REMAINING = 0.2;
 export const DROP_MIN_ABSOLUTE = 50;
 
 // --- decisão ---
+/** Salto e queda só contam como o MESMO platô se a queda vem depois do salto, a no máximo tantas horas. */
+export const PLATEAU_MAX_HOURS = 48;
 /**
  * Eventos independentes necessários para `suspicious`. Os sinais step_spike e abrupt_drop
  * descrevem o mesmo platô e contam como UM evento (`plateau_event`); mechanical_repeat é

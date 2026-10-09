@@ -8,15 +8,25 @@ const NOT_ENOUGH =
   `Só marco como suspeito com pelo menos ${T.MIN_GROUPS_TO_ACCUSE} eventos independentes ` +
   `(por exemplo, um platô e também repetição mecânica).`;
 
+/** Salto e queda são o mesmo platô: a queda vem depois do salto e a até PLATEAU_MAX_HOURS dele. */
+function samePlateau(step: Signal, drop: Signal): boolean {
+  if (!step.triggered || !drop.triggered) return false;
+  const gap = drop.evidence!.hour_index - step.evidence!.hour_index;
+  return gap > 0 && gap <= T.PLATEAU_MAX_HOURS;
+}
+
 function buildGroups(step: Signal, mech: Signal, drop: Signal): Group[] {
   const plateauSignals = [step, drop].filter((s) => s.triggered);
+  const both = step.triggered && drop.triggered;
+  const merged = samePlateau(step, drop);
   return [
     {
       name: "plateau_event",
       triggered: plateauSignals.length > 0,
       signals: plateauSignals.map((s) => s.name),
-      start_hour: step.evidence?.hour_index ?? null,
-      end_hour: drop.evidence?.hour_index ?? null,
+      // Com dois sinais que não são do mesmo platô, não afirmamos início nem fim.
+      start_hour: both && !merged ? null : (step.evidence?.hour_index ?? null),
+      end_hour: both && !merged ? null : (drop.evidence?.hour_index ?? null),
     },
     {
       name: "mechanical_repeat",
@@ -31,7 +41,14 @@ function buildGroups(step: Signal, mech: Signal, drop: Signal): Group[] {
 /** Frase única que descreve o evento do platô (um ou dois sinais do mesmo fenômeno). */
 function plateauText(step: Signal, drop: Signal): string {
   if (step.triggered && drop.triggered) {
-    return `um platô: ${step.description}; e ${drop.description}. O salto e a queda são o mesmo platô e contam como um evento só`;
+    if (samePlateau(step, drop)) {
+      return `um platô: ${step.description}; e ${drop.description}. O salto e a queda são o mesmo platô e contam como um evento só`;
+    }
+    return (
+      `dois platôs separados (a queda não vem logo depois do salto, então não formam um único platô): ` +
+      `${step.description}; e, em outro trecho, ${drop.description}. ` +
+      `Para não acusar a mais, os dois contam como um evento só`
+    );
   }
   return `um platô: ${(step.triggered ? step : drop).description}`;
 }

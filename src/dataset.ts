@@ -153,6 +153,53 @@ export const FAMILIES: Family[] = [
       },
     }),
   ),
+  // --- cenários de risco para a repetição mecânica (série legítima + platô/pico legítimo) ---
+  ...[3, 4, 5].map(
+    (pct): Family => ({
+      name: `risk_stable_bg_${pct}pct`, label: "legit", count: 100,
+      note: `canal grande e estável (500 a 5000 views/h) com ruído de fundo de ${pct}% e uma live de 8 a 12 h (ruído de 8%)`,
+      make: (r) => {
+        const n = r.int(96, 160), b = r.logUniform(500, 5000), t0 = r.int(40, 70), dur = r.int(8, 12), lvl = b * r.uniform(6, 15);
+        return toInts(Array.from({ length: n }, (_, h) => (h >= t0 && h < t0 + dur ? noisy(r, lvl, 0.08) : noisy(r, b, pct / 100))));
+      },
+    }),
+  ),
+  {
+    name: "risk_huge_channel_spike", label: "legit", count: 100,
+    note: "canal enorme (20 a 200 mil views/h) com ruído de fundo de 1,5% e um pico de 1 hora (6x a 15x)",
+    make: (r) => {
+      const n = r.int(72, 120), b = r.logUniform(20000, 200000), t = r.int(40, 60), m = r.uniform(6, 15);
+      return toInts(Array.from({ length: n }, (_, h) => noisy(r, b, 0.015) * (h === t ? m : 1)));
+    },
+  },
+  {
+    name: "risk_gap_fill_live", label: "legit", count: 100,
+    note: "falha de coleta preenchida com o último valor (8 h repetidas exatamente) e, em outro trecho, uma live de 8 a 12 h",
+    make: (r) => {
+      const n = r.int(96, 160), b = r.logUniform(100, 2000), g0 = r.int(20, 30), t0 = r.int(60, 80), dur = r.int(8, 12), lvl = b * r.uniform(6, 15);
+      const bg = background(r, n, b, 0.2, 0.1).map((v, h) => (h >= t0 && h < t0 + dur ? noisy(r, lvl, 0.08) : v));
+      const held = bg[g0]!;
+      return toInts(bg.map((v, h) => (h >= g0 && h < g0 + 8 ? held : v)));
+    },
+  },
+  ...[100, 1000].map(
+    (step): Family => ({
+      name: `risk_rounded_${step}_live`, label: "legit", count: 100,
+      note: `contagem arredondada a ${step} (canal de 5 a 50 mil views/h, ruído de 3%) e uma live de 8 a 12 h`,
+      make: (r) => {
+        const n = r.int(96, 160), b = r.logUniform(5000, 50000), t0 = r.int(40, 70), dur = r.int(8, 12), lvl = b * r.uniform(6, 15);
+        return Array.from({ length: n }, (_, h) => Math.max(0, Math.round((h >= t0 && h < t0 + dur ? noisy(r, lvl, 0.08) : noisy(r, b, 0.03)) / step) * step));
+      },
+    }),
+  ),
+  {
+    name: "risk_weekly_2w_noise3", label: "legit", count: 100,
+    note: "evento semanal de 24 h por duas semanas (336 h) com ruído de 3% no fundo e no platô",
+    make: (r) => {
+      const n = 336, b = r.logUniform(100, 400), lvl = b * r.uniform(8, 15), off = r.int(24, 100);
+      return toInts(Array.from({ length: n }, (_, h) => noisy(r, h >= off && (h - off) % 168 < 24 ? lvl : b, 0.03)));
+    },
+  },
   // --- suspeitos ---
   {
     name: "bought_step_plateau_drop", label: "suspicious", count: 50,

@@ -58,11 +58,11 @@ Dois exemplos, ambos `inconclusive`:
 
 ## Dataset e taxas medidas
 
-Dataset sintético, reproduzível: PRNG mulberry32 com seed fixa (`20260101`), um gerador por família, tamanhos fixos (100 por família legítima, 50 por suspeita; 600 legítimas e 400 suspeitas), nenhuma chamada de rede. Os números abaixo ficam entre marcadores e **o teste `test/readme.test.ts` falha se divergirem do medido por `npm run dataset`**.
+Dataset sintético, reproduzível: PRNG mulberry32 com seed fixa (`20260101`), um gerador por família, tamanhos fixos (100 por família legítima, 50 por suspeita; os totais saem do comando), nenhuma chamada de rede. Os números abaixo ficam entre marcadores e **o teste `test/readme.test.ts` falha se divergirem do medido por `npm run dataset`**.
 
-- **Taxa de falso positivo** (legítimos `suspicious` / legítimos): <!-- fp-rate:start -->1 de 900 legítimos classificados como suspicious (0,11%)<!-- fp-rate:end -->
-- **Inconclusive entre legítimos** (não escondido): <!-- legit-inconclusive:start -->286 de 900 legítimos classificados como inconclusive (31,78%)<!-- legit-inconclusive:end -->
-- **Detecção nos suspeitos**: <!-- detection:start -->100 de 400 suspeitos classificados como suspicious (25,00%); 198 inconclusive (49,50%); 102 passaram como organic (25,50%)<!-- detection:end -->
+- **Taxa de falso positivo** (legítimos `suspicious` / legítimos): <!-- fp-rate:start -->150 de 1200 legítimos classificados como suspicious (12,50%)<!-- fp-rate:end -->
+- **Inconclusive entre legítimos** (não escondido): <!-- legit-inconclusive:start -->437 de 1200 legítimos classificados como inconclusive (36,42%)<!-- legit-inconclusive:end -->
+- **Detecção nos suspeitos**: <!-- detection:start -->101 de 400 suspeitos classificados como suspicious (25,25%); 193 inconclusive (48,25%); 106 passaram como organic (26,50%)<!-- detection:end -->
 
 Por família:
 
@@ -78,17 +78,37 @@ Por família:
 | plateau_live_frontpage | legítimo | 100 | 0 | 100 | 0 |
 | weekly_event | legítimo | 100 | 0 | 99 | 1 |
 | low_volume_plateau | legítimo | 100 | 33 | 67 | 0 |
-| bought_step_plateau_drop | suspeito | 50 | 0 | 50 | 0 |
+| plateau_noise_2pct | legítimo | 100 | 0 | 16 | 84 |
+| plateau_noise_3pct | legítimo | 100 | 0 | 50 | 50 |
+| plateau_noise_4pct | legítimo | 100 | 0 | 85 | 15 |
+| bought_step_plateau_drop | suspeito | 50 | 0 | 49 | 1 |
 | bought_mechanical_plateau | suspeito | 50 | 0 | 0 | 50 |
 | combo_all | suspeito | 50 | 0 | 0 | 50 |
 | mechanical_only | suspeito | 50 | 0 | 50 | 0 |
-| ramped_plateau_drop | suspeito | 50 | 6 | 44 | 0 |
+| ramped_plateau_drop | suspeito | 50 | 11 | 39 | 0 |
 | single_hour_spike | suspeito | 50 | 0 | 50 | 0 |
 | diluted_spike | suspeito | 50 | 50 | 0 | 0 |
-| bot_mimics_organic | suspeito | 50 | 46 | 4 | 0 |
+| bot_mimics_organic | suspeito | 50 | 45 | 5 | 0 |
 <!-- families:end -->
 
-Famílias legítimas: estável (de 5 a 5000 views/h), crescimento lento, viral com rampa e cauda, sazonal/circadiano com fim de semana, vídeo antigo com queda suave, pico plausível (salto súbito com cauda). Famílias suspeitas: pico comprado em degrau com queda, degrau com taxa fixa, combinação dos três sinais, repetição mecânica isolada, platô com rampa e queda seca, pico de 1 hora, e duas **evasivas** de propósito (pico diluído em muitas horas e bots que imitam a curva de um viral), que o classificador não pega.
+Famílias do dataset (lista gerada do código; o teste de coerência confere):
+
+<!-- families-list:start -->
+- Legítimas: `stable` (100), `slow_growth` (100), `viral_ramp_tail` (100), `seasonal_circadian` (100), `old_video_decay` (100), `plausible_peak` (100), `plateau_live_frontpage` (100), `weekly_event` (100), `low_volume_plateau` (100), `plateau_noise_2pct` (100), `plateau_noise_3pct` (100), `plateau_noise_4pct` (100).
+- Suspeitas: `bought_step_plateau_drop` (50), `bought_mechanical_plateau` (50), `combo_all` (50), `mechanical_only` (50), `ramped_plateau_drop` (50), `single_hour_spike` (50), `diluted_spike` (50), `bot_mimics_organic` (50).
+<!-- families-list:end -->
+
+As duas famílias suspeitas **evasivas** (`diluted_spike`, `bot_mimics_organic`) existem de propósito: o classificador não as pega.
+
+**Falso positivo por nível de ruído do platô legítimo.** Um platô legítimo muito regular (live, destaque, evento semanal) com ruído de 2% a 4% é o caso mais perigoso, porque a variação cai perto do limiar de repetição mecânica (2%):
+
+<!-- noise-fp:start -->
+| ruído do platô | total | suspicious (falso positivo) | inconclusive | organic |
+|---|---|---|---|---|
+| 2% | 100 | 84 (84,00%) | 16 | 0 |
+| 3% | 100 | 50 (50,00%) | 50 | 0 |
+| 4% | 100 | 15 (15,00%) | 85 | 0 |
+<!-- noise-fp:end -->
 
 ### Leitura honesta dos números
 

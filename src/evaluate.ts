@@ -47,6 +47,8 @@ export function readmeBlocks(r: Report): Record<string, string> {
   return {
     "fp-rate": `${r.legit.suspicious} de ${r.legit.total} legítimos classificados como suspicious (${pct(r.legit.suspicious, r.legit.total)})`,
     "legit-inconclusive": `${r.legit.inconclusive} de ${r.legit.total} legítimos classificados como inconclusive (${pct(r.legit.inconclusive, r.legit.total)})`,
+    "noise-fp": noiseTable(r),
+    "families-list": familiesList(),
     "families": `\n${familyTable(r)}\n`,
     "detection": `${r.suspicious.suspicious} de ${r.suspicious.total} suspeitos classificados como suspicious (${pct(r.suspicious.suspicious, r.suspicious.total)}); ${r.suspicious.inconclusive} inconclusive (${pct(r.suspicious.inconclusive, r.suspicious.total)}); ${r.suspicious.organic} passaram como organic (${pct(r.suspicious.organic, r.suspicious.total)})`,
   };
@@ -67,4 +69,21 @@ export function familyTable(r: Report): string {
     return `| ${f.name} | ${f.label === "legit" ? "legítimo" : "suspeito"} | ${c.total} | ${c.organic} | ${c.inconclusive} | ${c.suspicious} |`;
   });
   return ["| família | tipo | total | organic | inconclusive | suspicious |", "|---|---|---|---|---|---|", ...rows].join("\n");
+}
+
+/** Falso positivo por nível de ruído do platô legítimo (famílias plateau_noise_*). */
+export function noiseTable(r: Report): string {
+  const rows = [2, 3, 4].map((pct) => {
+    const c = r.families[`plateau_noise_${pct}pct`]!;
+    return `| ${pct}% | ${c.total} | ${c.suspicious} (${pct2(c.suspicious, c.total)}) | ${c.inconclusive} | ${c.organic} |`;
+  });
+  return ["", "| ruído do platô | total | suspicious (falso positivo) | inconclusive | organic |", "|---|---|---|---|---|", ...rows, ""].join("\n");
+}
+const pct2 = (n: number, d: number) => `${((100 * n) / d).toFixed(2).replace(".", ",")}%`;
+
+/** Lista das famílias do dataset (nome e tamanho) para o README não divergir do código. */
+export function familiesList(): string {
+  const fmt = (label: string) =>
+    FAMILIES.filter((f) => f.label === label).map((f) => `\`${f.name}\` (${f.count})`).join(", ");
+  return `\n- Legítimas: ${fmt("legit")}.\n- Suspeitas: ${fmt("suspicious")}.\n`;
 }

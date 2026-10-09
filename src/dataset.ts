@@ -123,6 +123,17 @@ export const FAMILIES: Family[] = [
       return toInts(background(r, n, b, 0.3, 0.3).map((v, h) => (h >= t0 && h < t0 + 8 ? noisy(r, lvl, 0.12) : v)));
     },
   },
+  ...[2, 3, 4].map(
+    (pct): Family => ({
+      name: `plateau_noise_${pct}pct`, label: "legit", count: 100,
+      note: `platô legítimo com ruído de apenas ${pct}%: metade são lives/destaques de 8 a 12 h, metade são eventos semanais de 24 h`,
+      make: (r) => {
+        const n = r.int(96, 200), b = r.logUniform(80, 800), t0 = r.int(30, 60), lvl = b * r.uniform(6, 15);
+        const dur = r.next() < 0.5 ? r.int(8, 12) : 24;
+        return toInts(background(r, n, b, 0.2, 0.1).map((v, h) => (h >= t0 && h < t0 + dur ? noisy(r, lvl, pct / 100) : v)));
+      },
+    }),
+  ),
   // --- suspeitos ---
   {
     name: "bought_step_plateau_drop", label: "suspicious", count: 50,

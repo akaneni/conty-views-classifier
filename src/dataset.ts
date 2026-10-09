@@ -200,6 +200,17 @@ export const FAMILIES: Family[] = [
       return toInts(Array.from({ length: n }, (_, h) => noisy(r, h >= off && (h - off) % 168 < 24 ? lvl : b, 0.03)));
     },
   },
+  ...[0.2, 1].map(
+    (pct): Family => ({
+      name: `risk_two_plateaus_cv${String(pct).replace(".", "_")}pct`, label: "legit", count: 100,
+      note: `duas lives de 8 a 12 h, ambas extremamente regulares (variação de ${pct}%), em trechos diferentes: só o primeiro platô é excluído, o segundo conta como repetição fora do platô`,
+      make: (r) => {
+        const n = r.int(120, 180), b = r.logUniform(100, 1000), t1 = r.int(30, 45), d1 = r.int(8, 12), t2 = t1 + d1 + r.int(25, 40), d2 = r.int(8, 12);
+        const l1 = b * r.uniform(6, 15), l2 = b * r.uniform(6, 15);
+        return toInts(background(r, n, b, 0.2, 0.1).map((v, h) => (h >= t1 && h < t1 + d1 ? noisy(r, l1, pct / 100) : h >= t2 && h < t2 + d2 ? noisy(r, l2, pct / 100) : v)));
+      },
+    }),
+  ),
   // --- suspeitos ---
   {
     name: "bought_step_plateau_drop", label: "suspicious", count: 50,

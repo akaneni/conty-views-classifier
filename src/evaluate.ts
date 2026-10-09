@@ -1,5 +1,6 @@
 import { classify } from "./classify.ts";
 import { FAMILIES, generateDataset, DATASET_SEED, type Sample } from "./dataset.ts";
+import { sensitivityTable } from "./sensitivity.ts";
 import type { Classification } from "./types.ts";
 
 export interface Counts { total: number; organic: number; suspicious: number; inconclusive: number }
@@ -60,6 +61,8 @@ export function readmeBlocks(r: Report): Record<string, string> {
     "noise-fp": noiseTable(r),
     "scenarios": scenarioTable(r),
     "before-after": beforeAfter(r),
+    "fp-breakdown": fpBreakdown(r),
+    "poisson-sensitivity": sensitivityTable(),
     "families-list": familiesList(),
     "families": `\n${familyTable(r)}\n`,
     "detection": `${r.suspicious.suspicious} de ${r.suspicious.total} suspeitos classificados como suspicious (${pct(r.suspicious.suspicious, r.suspicious.total)}); ${r.suspicious.inconclusive} inconclusive (${pct(r.suspicious.inconclusive, r.suspicious.total)}); ${r.suspicious.organic} passaram como organic (${pct(r.suspicious.organic, r.suspicious.total)})`,
@@ -118,4 +121,19 @@ export function beforeAfter(r: Report): string {
     `inconclusive entre legítimos ${legit.inconclusive}/${legit.total} (${pct2(legit.inconclusive, legit.total)}), ` +
     `detecção ${sus.suspicious}/${sus.total} (${pct2(sus.suspicious, sus.total)})`;
   return `\n- ${line("Antes (repetição de CV < 2% conta)", L.legit, L.suspicious)}\n- ${line("Depois (só CV < 0,5% ou diferença constante)", r.legit, r.suspicious)}\n`;
+}
+
+/** Quanto do FP e do inconclusive entre legítimos vem dos cenários `risk_*` que o autor escolheu incluir. */
+export function fpBreakdown(r: Report): string {
+  const legit = FAMILIES.filter((f) => f.label === "legit");
+  const risk = legit.filter((f) => f.name.startsWith("risk_"));
+  const other = legit.filter((f) => !f.name.startsWith("risk_"));
+  const sum = (fs: typeof legit, k: "suspicious" | "inconclusive") => fs.reduce((a, f) => a + r.families[f.name]![k], 0);
+  const withFp = risk.filter((f) => r.families[f.name]!.suspicious > 0).sort((a, b) => r.families[b.name]!.suspicious - r.families[a.name]!.suspicious);
+  const names = withFp.map((f) => `\`${f.name}\` ${r.families[f.name]!.suspicious}`).join(", ");
+  return (
+    `${sum(risk, "suspicious")} dos ${r.legit.suspicious} falsos positivos vêm de ${withFp.length} cenários \`risk_*\` (${names}); ` +
+    `os outros ${legit.length - withFp.length} cenários legítimos (${risk.length - withFp.length} \`risk_*\` sem acusação e ${other.length} demais) somam ${r.legit.suspicious - sum(risk, "suspicious")}. ` +
+    `Dos ${r.legit.inconclusive} legítimos \`inconclusive\`, ${sum(risk, "inconclusive")} vêm dos ${risk.length} cenários \`risk_*\`.`
+  );
 }

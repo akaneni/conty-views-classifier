@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { poissonSensitivity } from "../src/sensitivity.ts";
 import { DATASET_SEED, FAMILIES, generateDataset } from "../src/dataset.ts";
 
 describe("dataset sintético", () => {
@@ -31,5 +32,12 @@ describe("dataset sintético", () => {
   it("tem famílias legítimas e suspeitas", () => {
     expect(FAMILIES.some((f) => f.label === "legit")).toBe(true);
     expect(FAMILIES.some((f) => f.label === "suspicious")).toBe(true);
+  });
+
+  it("a medição de sensibilidade a Poisson é reproduzível e cresce com o volume", () => {
+    const a = poissonSensitivity();
+    expect(poissonSensitivity()).toEqual(a);
+    const flat96 = a.filter((x) => x.hours === 96 && !x.cycle).map((x) => x.strong);
+    expect(flat96[3]!).toBeGreaterThanOrEqual(flat96[0]!);
   });
 });

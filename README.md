@@ -52,7 +52,21 @@ Consequência assumida (decisão do autor): **só se acusa com evidência em doi
 
 Decisão: **2 eventos independentes -> `suspicious`; 1 evento (mesmo com todos os sinais dentro dele) -> `inconclusive`; 0 -> `organic`**; menos de 24 pontos -> `inconclusive`. Acusar criador honesto custa mais do que deixar passar um caso duvidoso, então um evento isolado nunca acusa.
 
-**Por que 0,5% para repetição forte.** O limiar de 2% da primeira versão gerava falso positivo por acaso: um revisor independente mediu canais estáveis com ruído de fundo de 3% a 8% acusados em 4% a 77% dos casos. Contagem puramente aleatória (Poisson) já varia 1/raiz(média); 0,5% só seria natural acima de ~40 mil views/h. O 0,5% é escolha do autor a partir desse raciocínio, não foi ajustado olhando o dataset (e o dataset mostra que ele continua deixando passar falso positivo, ver abaixo). Variação entre 0,5% e 2% continua aparecendo no sinal, marcada como fraca.
+**Por que 0,5% para repetição forte.** O limiar de 2% da primeira versão gerava falso positivo por acaso: um revisor independente mediu canais estáveis com ruído de fundo de 3% a 8% acusados em 4% a 77% dos casos. Para uma janela de 8 h, contagem puramente aleatória (Poisson) varia em torno de 1/raiz(média), então 0,5% pareceria "não natural" abaixo de ~40 mil views/h. **Mas essa conta vale para uma janela só, e o classificador varre muitas janelas deslizantes de 8 h**: a repetição forte aparece por acaso já a partir de ~5 a 10 mil views/h em séries planas, sem ciclo diário marcado; com ciclo dia/noite marcado o risco some. Medição reproduzível (seed fixa, 200 séries por linha, Poisson aproximado por normal, geradas por `npm run dataset` e conferidas pelo teste de coerência):
+
+<!-- poisson-sensitivity:start -->
+| série | views/h (média) | séries | com ao menos uma janela forte por acaso |
+|---|---|---|---|
+| plana, 96 h | 2000 | 200 | 1 (0,5%) |
+| plana, 96 h | 5000 | 200 | 43 (21,5%) |
+| plana, 96 h | 10000 | 200 | 163 (81,5%) |
+| plana, 96 h | 20000 | 200 | 200 (100,0%) |
+| plana, 720 h | 5000 | 200 | 166 (83,0%) |
+| ciclo dia/noite de ±30%, 96 h | 5000 | 200 | 0 (0,0%) |
+| ciclo dia/noite de ±30%, 96 h | 20000 | 200 | 0 (0,0%) |
+<!-- poisson-sensitivity:end -->
+
+O 0,5% é escolha do autor, não foi ajustado olhando o dataset, e o dataset mostra que ele ainda deixa passar falso positivo. Variação entre 0,5% e 2% continua aparecendo no sinal, marcada como fraca.
 
 Os limiares foram escolhidos pelo autor, sem ajuste sobre o dataset (o enunciado não define limiares). Os mínimos absolutos (+50 views/h, 50 de média) são decisão minha para canal pequeno não disparar por ruído. Nas revisões mudaram a regra de decisão, a definição dos eventos, entrou `PLATEAU_MAX_HOURS = 48` e `MECH_STRONG_CV = 0,5%` (decisão do autor, justificada acima). Os demais limiares não foram alterados.
 
@@ -70,9 +84,11 @@ Dois exemplos, ambos `inconclusive`:
 
 Dataset sintético, reproduzível: PRNG mulberry32 com seed fixa (`20260101`), um gerador por família, tamanhos fixos (100 por família legítima, 50 por suspeita; os totais saem do comando), nenhuma chamada de rede. Os números abaixo ficam entre marcadores e **o teste `test/readme.test.ts` falha se divergirem do medido por `npm run dataset`**.
 
-- **Taxa de falso positivo** (legítimos `suspicious` / legítimos): <!-- fp-rate:start -->165 de 2000 legítimos classificados como suspicious (8,25%)<!-- fp-rate:end -->
-- **Inconclusive entre legítimos** (não escondido): <!-- legit-inconclusive:start -->1214 de 2000 legítimos classificados como inconclusive (60,70%)<!-- legit-inconclusive:end -->
-- **Detecção nos suspeitos**: <!-- detection:start -->98 de 500 suspeitos classificados como suspicious (19,60%); 285 inconclusive (57,00%); 117 passaram como organic (23,40%)<!-- detection:end -->
+- **Taxa de falso positivo** (legítimos `suspicious` / legítimos): <!-- fp-rate:start -->276 de 2200 legítimos classificados como suspicious (12,55%)<!-- fp-rate:end -->
+- **Inconclusive entre legítimos** (não escondido): <!-- legit-inconclusive:start -->1303 de 2200 legítimos classificados como inconclusive (59,23%)<!-- legit-inconclusive:end -->
+- **De onde vem o falso positivo e o inconclusive** (gerado pelo comando): <!-- fp-breakdown:start -->276 dos 276 falsos positivos vêm de 6 cenários `risk_*` (`risk_gap_fill_live` 100, `risk_two_plateaus_cv0_2pct` 100, `risk_rounded_1000_live` 47, `risk_huge_channel_spike` 17, `risk_two_plateaus_cv1pct` 11, `risk_weekly_2w_noise3` 1); os outros 16 cenários legítimos (4 `risk_*` sem acusação e 12 demais) somam 0. Dos 1303 legítimos `inconclusive`, 724 vêm dos 10 cenários `risk_*`.<!-- fp-breakdown:end -->
+  Portanto o número de falso positivo reflete **quantos cenários de risco o autor decidiu incluir** (cada um pesa 100 séries), **não** é taxa esperada em dados reais. Os demais cenários legítimos quase não acusam.
+- **Detecção nos suspeitos**: <!-- detection:start -->99 de 500 suspeitos classificados como suspicious (19,80%); 292 inconclusive (58,40%); 109 passaram como organic (21,80%)<!-- detection:end -->
 
 Por família:
 
@@ -99,22 +115,24 @@ Por família:
 | risk_rounded_100_live | legítimo | 100 | 0 | 100 | 0 |
 | risk_rounded_1000_live | legítimo | 100 | 0 | 53 | 47 |
 | risk_weekly_2w_noise3 | legítimo | 100 | 0 | 99 | 1 |
+| risk_two_plateaus_cv0_2pct | legítimo | 100 | 0 | 0 | 100 |
+| risk_two_plateaus_cv1pct | legítimo | 100 | 0 | 89 | 11 |
 | bought_step_plateau_drop | suspeito | 50 | 0 | 50 | 0 |
 | bought_mechanical_plateau | suspeito | 50 | 0 | 50 | 0 |
 | combo_all | suspeito | 50 | 0 | 50 | 0 |
 | mechanical_only | suspeito | 50 | 0 | 50 | 0 |
-| ramped_plateau_drop | suspeito | 50 | 21 | 29 | 0 |
-| single_hour_spike | suspeito | 50 | 1 | 49 | 0 |
+| ramped_plateau_drop | suspeito | 50 | 11 | 39 | 0 |
+| single_hour_spike | suspeito | 50 | 0 | 50 | 0 |
 | diluted_spike | suspeito | 50 | 50 | 0 | 0 |
-| bot_mimics_organic | suspeito | 50 | 45 | 5 | 0 |
-| mechanical_before_plateau | suspeito | 50 | 0 | 2 | 48 |
+| bot_mimics_organic | suspeito | 50 | 48 | 2 | 0 |
+| mechanical_before_plateau | suspeito | 50 | 0 | 1 | 49 |
 | mechanical_after_plateau | suspeito | 50 | 0 | 0 | 50 |
 <!-- families:end -->
 
 Famílias do dataset (lista gerada do código; o teste de coerência confere):
 
 <!-- families-list:start -->
-- Legítimas: `stable` (100), `slow_growth` (100), `viral_ramp_tail` (100), `seasonal_circadian` (100), `old_video_decay` (100), `plausible_peak` (100), `plateau_live_frontpage` (100), `weekly_event` (100), `low_volume_plateau` (100), `plateau_noise_2pct` (100), `plateau_noise_3pct` (100), `plateau_noise_4pct` (100), `risk_stable_bg_3pct` (100), `risk_stable_bg_4pct` (100), `risk_stable_bg_5pct` (100), `risk_huge_channel_spike` (100), `risk_gap_fill_live` (100), `risk_rounded_100_live` (100), `risk_rounded_1000_live` (100), `risk_weekly_2w_noise3` (100).
+- Legítimas: `stable` (100), `slow_growth` (100), `viral_ramp_tail` (100), `seasonal_circadian` (100), `old_video_decay` (100), `plausible_peak` (100), `plateau_live_frontpage` (100), `weekly_event` (100), `low_volume_plateau` (100), `plateau_noise_2pct` (100), `plateau_noise_3pct` (100), `plateau_noise_4pct` (100), `risk_stable_bg_3pct` (100), `risk_stable_bg_4pct` (100), `risk_stable_bg_5pct` (100), `risk_huge_channel_spike` (100), `risk_gap_fill_live` (100), `risk_rounded_100_live` (100), `risk_rounded_1000_live` (100), `risk_weekly_2w_noise3` (100), `risk_two_plateaus_cv0_2pct` (100), `risk_two_plateaus_cv1pct` (100).
 - Suspeitas: `bought_step_plateau_drop` (50), `bought_mechanical_plateau` (50), `combo_all` (50), `mechanical_only` (50), `ramped_plateau_drop` (50), `single_hour_spike` (50), `diluted_spike` (50), `bot_mimics_organic` (50), `mechanical_before_plateau` (50), `mechanical_after_plateau` (50).
 <!-- families-list:end -->
 
@@ -133,13 +151,15 @@ As duas famílias suspeitas **evasivas** (`diluted_spike`, `bot_mimics_organic`)
 | risk_rounded_100_live | 100 | 99 (99,00%) | 0 (0,00%) | 100 | 0 |
 | risk_rounded_1000_live | 100 | 92 (92,00%) | 47 (47,00%) | 53 | 0 |
 | risk_weekly_2w_noise3 | 100 | 100 (100,00%) | 1 (1,00%) | 99 | 0 |
+| risk_two_plateaus_cv0_2pct | 100 | 100 (100,00%) | 100 (100,00%) | 0 | 0 |
+| risk_two_plateaus_cv1pct | 100 | 100 (100,00%) | 11 (11,00%) | 89 | 0 |
 <!-- scenarios:end -->
 
 Totais antes/depois, no dataset inteiro:
 
 <!-- before-after:start -->
-- Antes (repetição de CV < 2% conta): FP 724/2000 (36,20%), inconclusive entre legítimos 663/2000 (33,15%), detecção 100/500 (20,00%)
-- Depois (só CV < 0,5% ou diferença constante): FP 165/2000 (8,25%), inconclusive entre legítimos 1214/2000 (60,70%), detecção 98/500 (19,60%)
+- Antes (repetição de CV < 2% conta): FP 924/2200 (42,00%), inconclusive entre legítimos 663/2200 (30,14%), detecção 100/500 (20,00%)
+- Depois (só CV < 0,5% ou diferença constante): FP 276/2200 (12,55%), inconclusive entre legítimos 1303/2200 (59,23%), detecção 99/500 (19,80%)
 <!-- before-after:end -->
 
 **Falso positivo por nível de ruído do platô legítimo.** Um platô legítimo muito regular (live, destaque, evento semanal) com ruído de 2% a 4% é o caso mais perigoso, porque a variação cai perto do limiar de repetição mecânica (2%):
@@ -154,18 +174,21 @@ Totais antes/depois, no dataset inteiro:
 
 ### Leitura honesta dos números
 
-- **Histórico, para não maquiar.**
-  1. Versão 1 (cada sinal contava separado, 600 legítimos): FP 0 de 600, inconclusive entre legítimos 20 de 600 (3,33%), detecção 148 de 400 (37,00%).
-  2. Revisão independente: um platô legítimo com queda seca (live, destaque, evento semanal) disparava `step_spike` e `abrupt_drop` e virava `suspicious`. Funde os dois em `plateau_event` e adicionei 3 famílias legítimas de platô: FP 1 de 900 (0,11%), inconclusive 286 de 900 (31,78%), detecção 100 de 400 (25,00%).
-  3. Re-revisão: platô legítimo bem regular (ruído de 2% a 4%) tem variação perto do limiar de 2% de `mechanical_repeat`. Com a regra "repetição conta como segundo evento mesmo dentro do platô", a medição nas famílias `plateau_noise_*` foi **84 de 100 (2%), 50 de 100 (3%) e 15 de 100 (4%) acusados**, FP total 150 de 1200 (12,50%). Com a regra atual (repetição só conta fora do platô), esses três níveis dão a tabela acima (0 acusados) e o FP total é o do comando.
-  4. 3ª revisão: o revisor mediu que o CV < 2% acusa por acaso em canais estáveis (fundo com ruído de 3% a 5% + live), canal enorme, contagem arredondada, evento semanal de 2 semanas e lacuna de coleta preenchida. Reproduzi esses cenários no dataset (`risk_*`). A regra passou a exigir evidência **forte** (ver Critério). Os números antes/depois estão nas tabelas acima, geradas pelo comando.
+- **Histórico, para não maquiar.** Cada número abaixo vem do `npm run dataset` rodado **no commit citado** (reproduza com `git worktree add --detach ../wt <commit>`, link de `node_modules` e `npx tsx scripts/dataset.ts`); os números de hoje são os desta página.
+  1. `7c2a256` (versão 1, cada sinal contava separado, 600 legítimos e 400 suspeitos): FP 0 de 600, inconclusive entre legítimos 20 de 600 (3,33%), detecção 148 de 400 (37,00%). Neste dataset, as famílias `bought_step_plateau_drop`, `bought_mechanical_plateau` e `combo_all` somavam **146 de 150 acusadas** (46 + 50 + 50). Hoje, no dataset atual, são 0 de 150.
+  2. `aac0dfd` (só a fusão de `step_spike` + `abrupt_drop`, mesmo dataset da versão 1): detecção 104 de 400 (26,00%). Um revisor mostrou que um platô legítimo com queda seca (live, destaque, evento semanal) virava `suspicious` por dois sinais do mesmo evento; por isso a fusão.
+  3. `ddca538` (+ 3 famílias legítimas de platô, 900 legítimos): FP 1 de 900 (0,11%), inconclusive 286 de 900 (31,78%), detecção 100 de 400 (25,00%).
+  4. `0fb5d4a` (+ platôs legítimos com ruído de 2% a 4%, 1200 legítimos, repetição dentro do platô ainda contava): `plateau_noise_*` acusados 84 de 100 (2%), 50 de 100 (3%) e 15 de 100 (4%); FP total 150 de 1200 (12,50%). Com a regra "repetição só conta fora do platô", esses três níveis passaram a 0 acusados.
+  5. `7ea28b4` (+ cenários `risk_*`, regra de variação < 2%, 2000 legítimos): FP 724 de 2000 (36,20%), inconclusive 663 de 2000 (33,15%), detecção 100 de 500 (20,00%). A coluna "antes" das tabelas de cenários é essa regra, recalculada pelo código atual (opção `countWeakMechanical`).
 - **O FP caiu bastante nos cenários de risco, mas não é 0, e isso fica visível.** Veja a tabela de cenários: fundo estável com ruído de 3% a 5%, contagem arredondada a 100 e platô regular com ruído de 2% a 4% deixam de ser acusados; **restam falsos positivos** em (a) falha de coleta preenchida com o último valor (8 horas exatamente iguais, mais uma live em outro trecho: acusada em 100% dos casos, porque 8 horas idênticas são indistinguíveis de um bot com views por hora), (b) contagem arredondada a 1000 em canal de 5 a 50 mil views/h (muitas horas com o mesmo número) e (c) canal enorme (20 a 200 mil views/h) com ruído de 1,5%, onde variação < 0,5% acontece por acaso em parte dos casos. Não criei exceção ad hoc para nenhum deles.
-- **O custo é a detecção.** Detecção medida: ver "Detecção nos suspeitos" acima. Das 500 séries suspeitas, só as das duas famílias com repetição mecânica **em outro trecho** (`mechanical_before_plateau`, `mechanical_after_plateau`) são acusadas, e elas foram construídas por mim exatamente com a evidência que o classificador exige, então os 96% e 100% nelas (48 e 50 de 50) não dizem nada sobre fraude real. Platô comprado com taxa fixa (`bought_mechanical_plateau`, `combo_all`) e em degrau (`bought_step_plateau_drop`) agora ficam `inconclusive`: 0 de 150 acusados, antes 146.
-- **Os ~61% de `inconclusive` entre legítimos são o preço de não acusar** (e subiram com a regra forte: o que antes era acusado agora é `inconclusive`). Vêm dos platôs legítimos (live/destaque, evento semanal, canal pequeno, platôs regulares), que sempre disparam um evento de platô, e de virais com rampa muito curta. `inconclusive` aqui significa "não sei", não "ok": quase todo platô legítimo cai nele.
+- **O custo é a detecção.** Detecção medida: ver "Detecção nos suspeitos" acima. Das 500 séries suspeitas, só as das duas famílias com repetição mecânica **em outro trecho** (`mechanical_before_plateau`, `mechanical_after_plateau`) são acusadas, e elas foram construídas por mim exatamente com a evidência que o classificador exige, então as taxas altas nelas (veja a tabela por família) não dizem nada sobre fraude real. Platô comprado com taxa fixa (`bought_mechanical_plateau`, `combo_all`) e em degrau (`bought_step_plateau_drop`) agora ficam `inconclusive`: 0 de 150 acusados (no dataset da versão 1, `7c2a256`, eram 146 de 150).
+- **Os cerca de 59% de `inconclusive` entre legítimos são o preço de não acusar** (e subiram com a regra forte: o que antes era acusado agora é `inconclusive`). Boa parte vem dos cenários `risk_*` que o autor adicionou (ver a decomposição acima); o resto são platôs legítimos (live/destaque, evento semanal, canal pequeno, platôs regulares), que sempre disparam um evento de platô, e virais com rampa muito curta. `inconclusive` aqui significa "não sei", não "ok": quase todo platô legítimo cai nele.
 - **O dataset é favorável.** Eu escrevi o dataset e o classificador; as famílias legítimas são curvas com ruído gaussiano, sem a maior parte das irregularidades de dados reais. Os cenários `risk_*` cobrem só alguns (arredondamento, lacuna de coleta, canal enorme), do jeito que eu os imaginei; reprocessamentos e outros defeitos de coleta não estão.
 
 ## O que NÃO detecta
 
+- **Nenhum dos três fenômenos do enunciado, sozinho, é acusado**: pico/platô sem repetição fora dele, repetição mecânica sozinha (família `mechanical_only`: 0 de 50 acusadas) e queda abrupta sozinha ficam `inconclusive`. Só a coincidência de dois eventos independentes acusa.
+- **Segundo platô muito regular conta como repetição "fora do platô"**: só o platô ligado ao primeiro sinal de salto/queda é excluído. Um segundo platô com variação < 0,5% vira segundo evento. Medido pelos cenários `risk_two_plateaus_*` (duas lives de 8 a 12 h; ver a tabela de cenários): variação de 0,2% é acusada em todos os casos, 1% quase não. O revisor mediu também evento semanal de 2 semanas com platô de 0,3% de variação acusado em 200 de 200 e com 3% em 0 de 200 (cenário `risk_weekly_2w_noise3`, com 3%). É um regime irreal para audiência humana (variação < 0,5% num platô), mas está declarado.
 - **Pico ou platô comprado, com ou sem taxa fixa, sem evidência fora do platô**: fica `inconclusive`, nunca `suspicious`. Com views por hora não dá para separar de uma live ou de um destaque na página inicial. Isso inclui o platô comprado com taxa fixa (indistinguível de uma live perfeitamente constante).
 - **Repetição mecânica só durante o platô** não é segundo evento, por decisão do autor.
 - **Falha de coleta preenchida com o último valor** (8 h ou mais exatamente iguais) mais uma live em outro trecho: é acusada, porque os dados não distinguem isso de um bot (limite conhecido, medido em `risk_gap_fill_live`).

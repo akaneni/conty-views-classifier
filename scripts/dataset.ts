@@ -20,6 +20,8 @@ console.log(`Detecção nos suspeitos: ${blocks["detection"]}`);
 console.log("\nAntes/depois da regra de repetição forte:" + blocks["before-after"]);
 console.log(familyTable(report));
 console.log(blocks["scenarios"]);
+console.log("Decomposição: " + blocks["fp-breakdown"]);
+console.log("\nSensibilidade da repetição forte a séries aleatórias (Poisson):" + blocks["poisson-sensitivity"]);
 
 if (process.argv.includes("--update-readme")) {
   let readme = readFileSync("README.md", "utf8");

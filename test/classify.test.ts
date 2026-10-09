@@ -7,6 +7,10 @@ const human = (n: number, base = 120): number[] =>
     Math.round(base * (1 + 0.35 * Math.sin((2 * Math.PI * i) / 24)) * (1 + 0.07 * Math.sin(i * 7.31))),
   );
 
+// Patamar com oscilação de ~8%: alto, mas ainda não "idêntico demais".
+const noisy = (n: number, level: number): number[] =>
+  Array.from({ length: n }, (_, i) => Math.round(level * (1 + 0.08 * Math.sin(i * 2.9 + 1))));
+
 const names = (v: ReturnType<typeof classify>) => v.signals.filter((s) => s.triggered).map((s) => s.name);
 
 describe("classify: casos óbvios", () => {
@@ -18,7 +22,7 @@ describe("classify: casos óbvios", () => {
   });
 
   it("pico comprado em degrau que termina em queda seca é suspicious, com motivo legível", () => {
-    const s = [...human(40), ...Array(12).fill(1500), ...human(20)];
+    const s = [...human(40), ...noisy(12, 1500), ...human(20)];
     const v = classify(s);
     expect(v.classification).toBe("suspicious");
     expect(names(v)).toEqual(["step_spike", "abrupt_drop"]);
@@ -37,17 +41,17 @@ describe("classify: casos óbvios", () => {
   });
 
   it("platô alto seguido de queda abrupta junto de degrau é suspicious", () => {
-    const s = [...human(30), ...[800, 810, 790, 805, 795, 800], 30, 25, ...human(20)];
+    const s = [...human(30), ...noisy(8, 800), 30, 25, ...human(20)];
     const v = classify(s);
     expect(v.classification).toBe("suspicious");
-    expect(names(v)).toContain("abrupt_drop");
+    expect(names(v)).toEqual(["step_spike", "abrupt_drop"]);
   });
 });
 
 describe("classify: pico orgânico plausível x pico comprado", () => {
   // Mesma altura de pico (cerca de 1500 views/h), caminhos diferentes.
   const viral = [...human(30), 200, 350, 600, 1000, 1500, 1450, 1300, 1100, 900, 700, 550, 430, 340, 270, 220, 180, ...human(30)];
-  const bought = [...human(30), ...Array(8).fill(1500), ...human(30)];
+  const bought = [...human(30), ...noisy(8, 1500), ...human(30)];
 
   it("viral com rampa e cauda longa é organic", () => {
     const v = classify(viral);

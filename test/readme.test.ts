@@ -17,6 +17,6 @@ describe("coerência do README com o dataset medido", () => {
   it("a taxa de falso positivo do README é derivada de legítimos classificados suspicious / total de legítimos", () => {
     const r = evaluate();
     expect(r.false_positive_rate).toBe(r.legit.suspicious / r.legit.total);
-    expect(r.legit.total).toBe(600);
+    expect(r.legit.total).toBe(900);
   });
 });

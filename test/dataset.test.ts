@@ -23,6 +23,11 @@ describe("dataset sintético", () => {
     }
   });
 
+  it("inclui as famílias legítimas que reproduzem o buraco do platô (live, evento semanal, canal pequeno)", () => {
+    const legit = FAMILIES.filter((f) => f.label === "legit").map((f) => f.name);
+    expect(legit).toEqual(expect.arrayContaining(["plateau_live_frontpage", "weekly_event", "low_volume_plateau"]));
+  });
+
   it("tem famílias legítimas e suspeitas", () => {
     expect(FAMILIES.some((f) => f.label === "legit")).toBe(true);
     expect(FAMILIES.some((f) => f.label === "suspicious")).toBe(true);

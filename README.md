@@ -52,9 +52,9 @@ Um pico de 1 hora que some na hora seguinte dispara só `step_spike`. Resultado:
 
 Dataset sintético, reproduzível: PRNG mulberry32 com seed fixa (`20260101`), um gerador por família, tamanhos fixos (100 por família legítima, 50 por suspeita; 600 legítimas e 400 suspeitas), nenhuma chamada de rede. Os números abaixo ficam entre marcadores e **o teste `test/readme.test.ts` falha se divergirem do medido por `npm run dataset`**.
 
-- **Taxa de falso positivo** (legítimos `suspicious` / legítimos): <!-- fp-rate:start -->0 de 600 legítimos classificados como suspicious (0,00%)<!-- fp-rate:end -->
-- **Inconclusive entre legítimos** (não escondido): <!-- legit-inconclusive:start -->20 de 600 legítimos classificados como inconclusive (3,33%)<!-- legit-inconclusive:end -->
-- **Detecção nos suspeitos**: <!-- detection:start -->148 de 400 suspeitos classificados como suspicious (37,00%); 144 inconclusive (36,00%); 108 passaram como organic (27,00%)<!-- detection:end -->
+- **Taxa de falso positivo** (legítimos `suspicious` / legítimos): <!-- fp-rate:start -->1 de 900 legítimos classificados como suspicious (0,11%)<!-- fp-rate:end -->
+- **Inconclusive entre legítimos** (não escondido): <!-- legit-inconclusive:start -->286 de 900 legítimos classificados como inconclusive (31,78%)<!-- legit-inconclusive:end -->
+- **Detecção nos suspeitos**: <!-- detection:start -->100 de 400 suspeitos classificados como suspicious (25,00%); 198 inconclusive (49,50%); 102 passaram como organic (25,50%)<!-- detection:end -->
 
 Por família:
 
@@ -67,14 +67,17 @@ Por família:
 | seasonal_circadian | legítimo | 100 | 100 | 0 | 0 |
 | old_video_decay | legítimo | 100 | 100 | 0 | 0 |
 | plausible_peak | legítimo | 100 | 98 | 2 | 0 |
-| bought_step_plateau_drop | suspeito | 50 | 0 | 4 | 46 |
+| plateau_live_frontpage | legítimo | 100 | 0 | 100 | 0 |
+| weekly_event | legítimo | 100 | 0 | 99 | 1 |
+| low_volume_plateau | legítimo | 100 | 33 | 67 | 0 |
+| bought_step_plateau_drop | suspeito | 50 | 0 | 50 | 0 |
 | bought_mechanical_plateau | suspeito | 50 | 0 | 0 | 50 |
 | combo_all | suspeito | 50 | 0 | 0 | 50 |
 | mechanical_only | suspeito | 50 | 0 | 50 | 0 |
-| ramped_plateau_drop | suspeito | 50 | 15 | 33 | 2 |
+| ramped_plateau_drop | suspeito | 50 | 6 | 44 | 0 |
 | single_hour_spike | suspeito | 50 | 0 | 50 | 0 |
 | diluted_spike | suspeito | 50 | 50 | 0 | 0 |
-| bot_mimics_organic | suspeito | 50 | 43 | 7 | 0 |
+| bot_mimics_organic | suspeito | 50 | 46 | 4 | 0 |
 <!-- families:end -->
 
 Famílias legítimas: estável (de 5 a 5000 views/h), crescimento lento, viral com rampa e cauda, sazonal/circadiano com fim de semana, vídeo antigo com queda suave, pico plausível (salto súbito com cauda). Famílias suspeitas: pico comprado em degrau com queda, degrau com taxa fixa, combinação dos três sinais, repetição mecânica isolada, platô com rampa e queda seca, pico de 1 hora, e duas **evasivas** de propósito (pico diluído em muitas horas e bots que imitam a curva de um viral), que o classificador não pega.

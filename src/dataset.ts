@@ -99,6 +99,30 @@ export const FAMILIES: Family[] = [
       return toInts(background(r, n, b, 0.2, 0.1).map((v, h) => (h < t0 ? v : v + b * m * Math.pow(0.5, (h - t0) / half))));
     },
   },
+  {
+    name: "plateau_live_frontpage", label: "legit", count: 100,
+    note: "live ou destaque na página inicial: salto de 1 h, patamar de 8 a 12 h com ruído natural de 5% a 10% e volta seca ao normal",
+    make: (r) => {
+      const n = r.int(72, 120), b = r.logUniform(50, 1000), t0 = r.int(30, 50), dur = r.int(8, 12), lvl = b * r.uniform(6, 15), sd = r.uniform(0.05, 0.1);
+      return toInts(background(r, n, b, 0.2, 0.1).map((v, h) => (h >= t0 && h < t0 + dur ? noisy(r, lvl, sd) : v)));
+    },
+  },
+  {
+    name: "weekly_event", label: "legit", count: 100,
+    note: "evento semanal (ex.: newsletter de segunda): 24 h altas (8x a 15x) e o resto da semana baixo, por duas semanas",
+    make: (r) => {
+      const n = 336, b = r.logUniform(80, 300), lvl = b * r.uniform(8, 15), off = r.int(24, 100);
+      return toInts(background(r, n, b, 0.1, 0.1).map((v, h) => ((h - off) % 168 >= 0 && (h - off) % 168 < 24 && h >= off ? noisy(r, lvl, 0.08) : v)));
+    },
+  },
+  {
+    name: "low_volume_plateau", label: "legit", count: 100,
+    note: "canal pequeno: base de ~3 views/h que vai a ~60 views/h por 8 h com ruído natural e volta",
+    make: (r) => {
+      const n = r.int(72, 120), b = r.uniform(2, 5), t0 = r.int(30, 50), lvl = r.uniform(40, 80);
+      return toInts(background(r, n, b, 0.3, 0.3).map((v, h) => (h >= t0 && h < t0 + 8 ? noisy(r, lvl, 0.12) : v)));
+    },
+  },
   // --- suspeitos ---
   {
     name: "bought_step_plateau_drop", label: "suspicious", count: 50,

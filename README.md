@@ -5,6 +5,7 @@ Classificador **explicável** de séries de views por hora. Recebe a série, dev
 ## Como rodar
 
 ```bash
+# Node 22.13+ (declarado em engines; só confirmei no Node 24.21)
 npm install
 npm test            # inclui o teste que compara o README com o dataset medido
 npm run typecheck
@@ -28,7 +29,7 @@ Resposta (resumida): `classification: "suspicious"`, `reason: "Suspeita: 2 event
 
 O corpo traz:
 - `signals`: os três sinais individuais, cada um com `name`, `triggered`, `description` (PT-BR) e `evidence: { hour_index, value, baseline }` (ou `null` quando não disparou).
-- `groups`: os dois **eventos independentes** usados na decisão, `plateau_event` (agrupa `step_spike` e `abrupt_drop`) e `mechanical_repeat`, cada um com `triggered`, `signals` (quais sinais internos dispararam), `start_hour` e `end_hour` (para o platô: hora do salto e hora da queda).
+- `groups`: os dois **eventos independentes** usados na decisão, `plateau_event` (agrupa `step_spike` e `abrupt_drop`) e `mechanical_repeat`, cada um com `triggered`, `signals` (quais sinais internos dispararam), `start_hour` e `end_hour` (para o platô do mesmo evento: hora do salto e hora da queda; `null` quando salto e queda são platôs separados). `mechanical_repeat.triggered` só é `true` quando a repetição está fora do platô; dentro do platô o sinal individual em `signals` aparece disparado, mas o grupo não.
 
 ## Critério
 
@@ -40,11 +41,18 @@ Três sinais, cada um com limiares nomeados em um único arquivo, [`src/threshol
 | `mechanical_repeat` | >= 8 horas seguidas com coeficiente de variação < 2%, ou diferenças consecutivas iguais e não nulas; média mínima de 50 views/h | `MECH_MIN_HOURS`, `MECH_MAX_CV`, `MECH_MIN_MEAN` |
 | `abrupt_drop` | queda >= 80% em 1 h depois de >= 3 h acima de 3x a mediana da série (e perda de pelo menos 50 views/h) | `DROP_*` |
 
-Os sinais são agrupados por **evento independente**. `step_spike` e `abrupt_drop` descrevem o mesmo platô (salto, patamar, queda), então contam como **um** evento, `plateau_event`. `mechanical_repeat` é o outro evento. Os sinais individuais continuam na resposta para explicar o motivo.
+Os sinais são agrupados por **evento independente**:
 
-Decisão: **2 eventos independentes (na prática, platô + repetição mecânica) -> `suspicious`; 1 evento (mesmo com os dois sinais do platô) -> `inconclusive`; 0 -> `organic`**; menos de 24 pontos -> `inconclusive`. Acusar criador honesto custa mais do que deixar passar um caso duvidoso, então um evento isolado nunca acusa.
+1. **`plateau_event`**: `step_spike` e `abrupt_drop` descrevem o mesmo platô (salto, patamar, queda) e contam como **um** evento, mas só quando são do **mesmo platô**: a queda vem **depois** do salto e a no máximo `PLATEAU_MAX_HOURS` (48 h) dele. Caso contrário (queda antes do salto, ou muito longe) o motivo fala em "dois platôs separados", `start_hour` e `end_hour` ficam `null` e, para não acusar a mais, os dois ainda contam como um evento só.
+2. **`mechanical_repeat`**: só conta como **segundo** evento se estiver **fora do platô**.
 
-Os limiares foram escolhidos pelo autor, sem ajuste sobre o dataset (o enunciado não define limiares). Os mínimos absolutos (+50 views/h, 50 de média) são decisão minha para canal pequeno não disparar por ruído. Nenhum limiar foi alterado nesta revisão; mudou só a regra de decisão (fusão dos sinais do platô).
+**Definição de "fora do platô".** A janela de 8 h de repetição mecânica não pode tocar nenhuma hora do trecho do platô. Esse trecho é: (a) salto e queda do mesmo platô: da hora do salto até a hora anterior à queda (inclusive); (b) só salto: do salto até a última hora seguida acima de 2x a base; (c) só queda: o patamar acima de 3x a base imediatamente antes da queda; (d) platôs separados: a união de (b) e (c). Uma repetição que começa exatamente na hora da queda já é "fora". Repetição dentro do platô é considerada parte do mesmo evento (o motivo diz isso) e **não** vira segundo evento, embora `mechanical_repeat` continue aparecendo em `signals`.
+
+Consequência assumida (decisão do autor): **só se acusa com evidência em dois trechos independentes da série**. Um platô comprado com taxa fixa é indistinguível de uma live legítima com os dados disponíveis (só views por hora), então fica `inconclusive`. O que ainda é acusado: repetição mecânica antes ou depois de um platô.
+
+Decisão: **2 eventos independentes -> `suspicious`; 1 evento (mesmo com todos os sinais dentro dele) -> `inconclusive`; 0 -> `organic`**; menos de 24 pontos -> `inconclusive`. Acusar criador honesto custa mais do que deixar passar um caso duvidoso, então um evento isolado nunca acusa.
+
+Os limiares foram escolhidos pelo autor, sem ajuste sobre o dataset (o enunciado não define limiares). Os mínimos absolutos (+50 views/h, 50 de média) são decisão minha para canal pequeno não disparar por ruído. Nenhum limiar existente foi alterado nas revisões; mudaram só a regra de decisão e a definição dos eventos (e entrou `PLATEAU_MAX_HOURS = 48`).
 
 ### Pico orgânico x pico comprado
 
@@ -114,16 +122,20 @@ As duas famílias suspeitas **evasivas** (`diluted_spike`, `bot_mimics_organic`)
 
 ### Leitura honesta dos números
 
-- **Histórico, para não maquiar.** Primeira versão (cada sinal contava separado, 600 legítimos): FP 0 de 600 (0,00%), inconclusive entre legítimos 20 de 600 (3,33%), detecção 148 de 400 (37,00%). Um revisor independente mostrou que um platô legítimo de 8 a 12 h com queda seca (live, destaque, newsletter semanal) disparava `step_spike` e `abrupt_drop` juntos e virava `suspicious`, porque os dois descrevem o mesmo evento. Corrigi fundindo os dois em `plateau_event` e adicionei ao dataset três famílias legítimas que reproduzem o buraco (`plateau_live_frontpage`, `weekly_event`, `low_volume_plateau`). Com só a fusão, a detecção caiu para 104 de 400 (26,00%); com as novas famílias, os números são os de cima. Nenhum limiar foi mexido.
-- **O FP deixou de ser 0 e isso fica visível.** O falso positivo restante (`weekly_event-004`) é plateau + `mechanical_repeat` por acaso: em 24 h altas com ruído de 8%, uma janela de 8 horas teve variação de 1,25%, abaixo dos 2%. Não reajustei o limiar para sumir com ele. Sobe junto o risco de uma live perfeitamente constante (variação de ~0,3%): ela também é acusada, e há um teste ("limite conhecido") que documenta isso, porque com estes dados uma taxa fixa legítima e uma taxa fixa comprada são iguais.
-- **Os 31,78% de `inconclusive` entre legítimos são o preço de não acusar.** Vêm quase todos dos platôs legítimos novos (live/destaque, evento semanal, canal pequeno), que sempre disparam um evento de platô, e de virais com rampa muito curta (`step_spike` na primeira hora da rampa). Nenhum vira `suspicious` sem um segundo evento independente. Uma resposta `inconclusive` aqui significa "não sei", não "ok".
-- **A detecção caiu e é esperado.** Um pico comprado em degrau **sem repetição mecânica** (`bought_step_plateau_drop`: 0 de 50 detectados agora, antes 46) é indistinguível de um platô legítimo com os dados disponíveis (só views por hora), então fica `inconclusive`. O classificador prefere não acusar a punir criador honesto. O que ainda é acusado é o platô com taxa fixa (`bought_mechanical_plateau`, `combo_all`).
-- **O dataset continua favorável.** Eu escrevi o dataset e o classificador; as famílias legítimas são curvas com ruído gaussiano, sem as irregularidades de dados reais (cortes de coleta, reprocessamentos, contagem arredondada). As famílias suspeitas de 2 eventos foram construídas com exatamente os sinais que o classificador procura, então a detecção alta nelas (100%) não diz nada sobre fraude real. O FP medido é um piso otimista.
+- **Histórico, para não maquiar.**
+  1. Versão 1 (cada sinal contava separado, 600 legítimos): FP 0 de 600, inconclusive entre legítimos 20 de 600 (3,33%), detecção 148 de 400 (37,00%).
+  2. Revisão independente: um platô legítimo com queda seca (live, destaque, evento semanal) disparava `step_spike` e `abrupt_drop` e virava `suspicious`. Funde os dois em `plateau_event` e adicionei 3 famílias legítimas de platô: FP 1 de 900 (0,11%), inconclusive 286 de 900 (31,78%), detecção 100 de 400 (25,00%).
+  3. Re-revisão: platô legítimo bem regular (ruído de 2% a 4%) tem variação perto do limiar de 2% de `mechanical_repeat`. Com a regra "repetição conta como segundo evento mesmo dentro do platô", a medição nas famílias `plateau_noise_*` foi **84 de 100 (2%), 50 de 100 (3%) e 15 de 100 (4%) acusados**, FP total 150 de 1200 (12,50%). Com a regra atual (repetição só conta fora do platô), esses três níveis dão a tabela acima (0 acusados) e o FP total é o do comando.
+  Nenhum limiar foi mexido em nenhuma etapa.
+- **O FP é 0 por construção da regra, não porque o problema sumiu.** A repetição mecânica **dentro** do platô deixou de contar, então um platô legítimo regular não é acusado. O risco que sobra é um criador ter, em outro trecho da série, 8 horas de variação < 2% por acaso (canal grande e estável) **e** também um platô. O dataset não tem essa combinação legítima, então esse risco não está medido.
+- **O custo é a detecção.** Detecção medida: ver "Detecção nos suspeitos" acima. Das 500 séries suspeitas, só as 100 das duas famílias com repetição mecânica **em outro trecho** (`mechanical_before_plateau`, `mechanical_after_plateau`) são acusadas, e elas foram construídas por mim exatamente com a evidência que o classificador exige, então o 100% nelas não diz nada sobre fraude real. Platô comprado com taxa fixa (`bought_mechanical_plateau`, `combo_all`) e em degrau (`bought_step_plateau_drop`) agora ficam `inconclusive`: 0 de 150 acusados, antes 146.
+- **Os ~49% de `inconclusive` entre legítimos são o preço de não acusar.** Vêm dos platôs legítimos (live/destaque, evento semanal, canal pequeno, platôs regulares), que sempre disparam um evento de platô, e de virais com rampa muito curta. `inconclusive` aqui significa "não sei", não "ok": quase todo platô legítimo cai nele.
+- **O dataset é favorável.** Eu escrevi o dataset e o classificador; as famílias legítimas são curvas com ruído gaussiano, sem as irregularidades de dados reais (cortes de coleta, reprocessamentos, contagem arredondada).
 
 ## O que NÃO detecta
 
-- **Pico ou platô comprado sem repetição mecânica**: fica `inconclusive`, nunca `suspicious`. Com views por hora não dá para separar de uma live ou de um destaque na página inicial.
-- **Platô legítimo com taxa perfeitamente constante** (variação < 2% por 8 h): é acusado, porque é igual ao comprado com taxa fixa.
+- **Pico ou platô comprado, com ou sem taxa fixa, sem evidência fora do platô**: fica `inconclusive`, nunca `suspicious`. Com views por hora não dá para separar de uma live ou de um destaque na página inicial. Isso inclui o platô comprado com taxa fixa (indistinguível de uma live perfeitamente constante).
+- **Repetição mecânica só durante o platô** não é segundo evento, por decisão do autor.
 - **Bots que imitam uma curva orgânica** (rampa e cauda): passam como `organic` (família `bot_mimics_organic`).
 - **Pico distribuído em muitas horas** (compra diluída, sem salto): passa como `organic` (família `diluted_spike`).
 - **Ritmo circadiano**: não é usado. Tráfego sem ciclo dia/noite, que seria indício forte, não é visto (e o ciclo normal não é tratado como suspeito).
@@ -134,9 +146,9 @@ As duas famílias suspeitas **evasivas** (`diluted_spike`, `bot_mimics_organic`)
 ## Decisões minhas além da spec
 
 - Resposta traz também `description` por sinal, `evidence: null` quando não disparou e `groups` (eventos independentes, ver Critério).
-- Fusão de `step_spike` + `abrupt_drop` em `plateau_event` (decisão do autor após revisão independente).
+- Fusão de `step_spike` + `abrupt_drop` do mesmo platô em `plateau_event` e regra de "fora do platô" para `mechanical_repeat` (decisões do autor após revisões independentes).
 - Mínimos absolutos (+50 views/h de salto, 50 de média, 50 de queda) e janela de rampa de 3 h.
-- Limite de 720 pontos por requisição; lista vazia, não inteiros, negativos e JSON inválido -> 400.
+- Limite de 720 pontos por requisição; lista vazia, não inteiros seguros (`Number.isSafeInteger`, então `1e300` dá 400), negativos e JSON inválido -> 400.
 - `step_spike` olha a mediana das 24 h anteriores (a spec dizia "janela anterior"), exigindo ao menos 6 pontos.
 - Sem banco nem relógio: a API não tem estado, então `createApp()` não recebe dependências. `data/` fica no `.gitignore` e é regenerado por `npm run dataset`.
 

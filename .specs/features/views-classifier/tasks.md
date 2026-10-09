@@ -20,3 +20,13 @@
 | R4 | Famílias legítimas de platô no dataset, taxas regeneradas | npm run dataset | [x] |
 | R5 | Teste de coerência cobre tabela por família + recontagem independente | test/readme | [x] |
 | R6 | README e .specs atualizados | revisão | [x] |
+
+## Segunda revisão independente
+
+| ID | Tarefa | Verificação | Feito |
+| --- | --- | --- | --- |
+| S1 | Dataset: platôs legítimos com ruído 2/3/4%, FP por ruído e lista de famílias verificados | test/readme | [x] |
+| S2 | Fusão só no mesmo platô (queda depois do salto, <= 48 h) | test/classify | [x] |
+| S3 | `isSafeInteger` na validação | test/api | [x] |
+| S4 | Mecânica fora do platô como segundo evento; famílias suspeitas com dois trechos | test/classify, npm run dataset | [x] |
+| S5 | README, engines >= 22.13 e .specs | revisão | [x] |

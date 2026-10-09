@@ -23,6 +23,9 @@ Marca paga criador por alcance. Pico comprado, repetição mecânica e queda abr
 | VIEW-06 | Todos os limiares nomeados em um único arquivo `src/thresholds.ts`. |
 | VIEW-07 | Decisão por **eventos independentes**: `step_spike` + `abrupt_drop` do mesmo platô contam como 1 evento (`plateau_event`); `mechanical_repeat` é o outro. >= 2 eventos -> `suspicious`; 1 -> `inconclusive`; 0 -> `organic`. (Revisado após revisão independente: antes eram >= 2 sinais.) `step_spike` e `abrupt_drop` só se fundem se a queda vier depois do salto e a <= `PLATEAU_MAX_HOURS` (48 h); senão são dois platôs separados contados como um grupo (sem acusar a mais), com start/end nulos. |
 | VIEW-20 | `mechanical_repeat` só conta como segundo evento se a janela de 8 h não tocar o trecho do platô (definição no README); dentro do platô faz parte do mesmo evento. Consequência: só se acusa com evidência em dois trechos independentes. |
+| VIEW-23 | `mechanical_repeat`: forte = CV < `MECH_STRONG_CV` (0,5%) ou diferenças exatamente constantes; fraca = CV < 2%. Só forte conta como evento; fraca aparece em `signals` com `strength: weak`. |
+| VIEW-24 | Cenários legítimos de risco (`risk_*`) no dataset; README traz FP antes (regra de 2%) e depois por cenário, gerado pelo comando e verificado por teste. Falhas remanescentes são documentadas como limite conhecido. |
+| VIEW-25 | Motivo do platô com queda a mais de `PLATEAU_MAX_HOURS` do salto diz "distantes demais", sem afirmar dois platôs. |
 | VIEW-21 | Validação usa `Number.isSafeInteger`; `engines` node >= 22.13. |
 | VIEW-22 | Dataset inclui platôs legítimos com ruído de 2%, 3% e 4%; o README traz FP por nível de ruído, verificado por teste, e a lista de famílias, também verificada. |
 | VIEW-08 | Resposta `{classification, reason, signals:[{name, triggered, description, evidence:{hour_index,value,baseline}\|null}], groups:[{name, triggered, signals, start_hour, end_hour}]}`; `reason` em PT-BR legível sem conhecer o código. |

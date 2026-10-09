@@ -30,3 +30,12 @@
 | S3 | `isSafeInteger` na validação | test/api | [x] |
 | S4 | Mecânica fora do platô como segundo evento; famílias suspeitas com dois trechos | test/classify, npm run dataset | [x] |
 | S5 | README, engines >= 22.13 e .specs | revisão | [x] |
+
+## Terceira revisão independente
+
+| ID | Tarefa | Verificação | Feito |
+| --- | --- | --- | --- |
+| U1 | Texto do platô longo; bordas da exclusão do platô | test/classify, test/signals | [x] |
+| U2 | Cenários legítimos `risk_*` no dataset | npm run dataset | [x] |
+| U3 | Repetição forte x fraca (`MECH_STRONG_CV`) | test/signals, test/classify | [x] |
+| U4 | Tabela antes/depois por cenário e globais no README, verificadas por teste | test/readme | [x] |

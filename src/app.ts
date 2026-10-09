@@ -7,7 +7,7 @@ function validate(body: unknown): { views: number[] } | { error: string } {
   if (!Array.isArray(list)) return { error: "views_per_hour deve ser uma lista de números" };
   if (list.length === 0) return { error: "views_per_hour não pode ser vazia" };
   if (list.length > MAX_SERIES_LENGTH) return { error: `views_per_hour aceita no máximo ${MAX_SERIES_LENGTH} horas` };
-  if (!list.every((v) => typeof v === "number" && Number.isInteger(v) && v >= 0)) {
+  if (!list.every((v) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0)) {
     return { error: "views_per_hour deve conter apenas inteiros maiores ou iguais a zero" };
   }
   return { views: list as number[] };

@@ -28,10 +28,11 @@ describe("API", () => {
   });
 
   it("série com pico comprado volta suspicious com evidência", async () => {
-    const s = [...stable, ...[1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500], 20, 18, ...stable];
+    const s = [...stable, ...Array(10).fill(150), ...stable, ...Array(8).fill(1500), 20, 18, ...stable];
     const body = await (await post({ views_per_hour: s })).json();
     expect(body.classification).toBe("suspicious");
-    expect(body.signals.find((x: any) => x.name === "step_spike").evidence.hour_index).toBe(48);
+    expect(body.signals.find((x: any) => x.name === "step_spike").evidence.hour_index).toBe(106);
+    expect(body.groups.map((g: any) => [g.name, g.triggered])).toEqual([["plateau_event", true], ["mechanical_repeat", true]]);
   });
 
   it("série curta volta 200 inconclusive", async () => {
@@ -45,6 +46,7 @@ describe("API", () => {
     ["corpo sem o campo", {}, false],
     ["campo que não é lista", { views_per_hour: "abc" }, false],
     ["valor negativo", { views_per_hour: [...stable, -1] }, false],
+    ["inteiro grande demais para ser seguro (1e300)", { views_per_hour: [...stable, 1e300] }, false],
     ["valor fracionário", { views_per_hour: [...stable, 1.5] }, false],
     ["valor que não é número", { views_per_hour: [...stable, "10"] }, false],
     ["lista vazia", { views_per_hour: [] }, false],

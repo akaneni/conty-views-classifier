@@ -134,6 +134,24 @@ describe("classify: salto e queda só se fundem quando são do mesmo platô", ()
     expect(v.reason).not.toMatch(/são o mesmo platô/i);
   });
 
+  it("fronteira de 48 h: queda a exatamente 48 h do salto funde; a 49 h não funde", () => {
+    // Platô de n horas a partir da hora 40: a queda cai na hora 40 + n, ou seja, n horas após o salto.
+    const run = (n: number) => classify([...human(40), ...noisy(n, 1500), ...human(20)]);
+    const at48 = run(48);
+    const g48 = at48.groups[0]!;
+    expect(at48.signals[2]!.evidence!.hour_index - at48.signals[0]!.evidence!.hour_index).toBe(48);
+    expect(g48).toMatchObject({ start_hour: 40, end_hour: 88 });
+    expect(at48.reason).toMatch(/são o mesmo platô/);
+
+    const at49 = run(49);
+    const g49 = at49.groups[0]!;
+    expect(at49.signals[2]!.evidence!.hour_index - at49.signals[0]!.evidence!.hour_index).toBe(49);
+    expect(g49.start_hour).toBeNull();
+    expect(g49.end_hour).toBeNull();
+    expect(at49.reason).toMatch(/distantes demais/);
+    expect(at49.reason).not.toMatch(/são o mesmo platô/);
+  });
+
   it("salto e queda do mesmo platô trazem start_hour <= end_hour", () => {
     const g = group(classify([...human(40), ...noisy(12, 1500), ...human(20)]));
     expect(g.start_hour).toBe(40);

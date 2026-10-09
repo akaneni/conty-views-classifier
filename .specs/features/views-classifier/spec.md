@@ -26,6 +26,10 @@ Marca paga criador por alcance. Pico comprado, repetição mecânica e queda abr
 | VIEW-23 | `mechanical_repeat`: forte = CV < `MECH_STRONG_CV` (0,5%) ou diferenças exatamente constantes; fraca = CV < 2%. Só forte conta como evento; fraca aparece em `signals` com `strength: weak`. |
 | VIEW-24 | Cenários legítimos de risco (`risk_*`) no dataset; README traz FP antes (regra de 2%) e depois por cenário, gerado pelo comando e verificado por teste. Falhas remanescentes são documentadas como limite conhecido. |
 | VIEW-25 | Motivo do platô com queda a mais de `PLATEAU_MAX_HOURS` do salto diz "distantes demais", sem afirmar dois platôs. |
+| VIEW-26 | Sensibilidade da repetição forte a séries aleatórias (Poisson, seed fixa) por volume e por ciclo diário, no README, gerada pelo comando e verificada por teste. |
+| VIEW-27 | README decompõe o FP e o inconclusive entre legítimos por cenário `risk_*` (gerado e verificado); o FP reflete os cenários escolhidos, não taxa esperada. |
+| VIEW-28 | Cenários `risk_two_plateaus_*`: segundo platô muito regular conta como repetição fora do platô (limite declarado). |
+| VIEW-29 | Todo número histórico do README cita o commit e é reproduzível; fronteira de 48 h testada (48 funde, 49 não). |
 | VIEW-21 | Validação usa `Number.isSafeInteger`; `engines` node >= 22.13. |
 | VIEW-22 | Dataset inclui platôs legítimos com ruído de 2%, 3% e 4%; o README traz FP por nível de ruído, verificado por teste, e a lista de famílias, também verificada. |
 | VIEW-08 | Resposta `{classification, reason, signals:[{name, triggered, description, evidence:{hour_index,value,baseline}\|null}], groups:[{name, triggered, signals, start_hour, end_hour}]}`; `reason` em PT-BR legível sem conhecer o código. |

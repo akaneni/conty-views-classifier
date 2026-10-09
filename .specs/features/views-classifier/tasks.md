@@ -39,3 +39,11 @@
 | U2 | Cenários legítimos `risk_*` no dataset | npm run dataset | [x] |
 | U3 | Repetição forte x fraca (`MECH_STRONG_CV`) | test/signals, test/classify | [x] |
 | U4 | Tabela antes/depois por cenário e globais no README, verificadas por teste | test/readme | [x] |
+
+## Ajustes finais (revisão final)
+
+| ID | Tarefa | Verificação | Feito |
+| --- | --- | --- | --- |
+| V1 | Teste da fronteira exata de 48 h | test/classify + mutação | [x] |
+| V2 | Sensibilidade a Poisson, decomposição do FP, cenários de dois platôs | npm run dataset, test/readme | [x] |
+| V3 | README: justificativa do 0,5%, limites, histórico por commit | revisão | [x] |

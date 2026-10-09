@@ -70,8 +70,7 @@ export function classify(views: number[]): Verdict {
       classification: "suspicious",
       reason:
         `Suspeita: ${hit.length} eventos independentes de audiência não humana apareceram juntos. ` +
-        texts.map((t, i) => `${i + 1}) ${t}`).join("; ") +
-        `.`,
+        texts.map((t, i) => `(${i + 1}) ${t}.`).join(" "),
       signals,
       groups,
     };

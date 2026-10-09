@@ -21,10 +21,14 @@ npm run dataset -- --update-readme   # reescreve só os números entre marcadore
 
 ```bash
 curl -s localhost:3000/classify -H 'content-type: application/json' \
-  -d '{"views_per_hour":[110,95,130,102,141,88,120,99,135,108,92,125,117,101,138,90,122,104,131,97,119,112,126,94,1500,1420,1560,1450,1530,1470,1510,1440,1490,1550,1460,1500,20,18,22]}'
+  -d '{"views_per_hour":[110,95,130,102,141,88,120,99,135,108,92,125,117,101,138,90,122,104,131,97,119,112,126,94,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,1500,20,18,22]}'
 ```
 
-Resposta (resumida): `classification: "suspicious"`, `reason: "Suspeita: 2 sinais de audiência não humana apareceram juntos. 1) salto de 13,5x na hora 24 (de cerca de 111 para 1500 views/h) sem subida gradual antes e sem queda gradual depois (o patamar se manteve); 2) queda de 99% em 1 hora na hora 36 (...)"` e `signals` com, para cada um dos três sinais, `name`, `triggered`, `description` (PT-BR) e `evidence: { hour_index, value, baseline }` (ou `null` quando não disparou).
+Resposta (resumida): `classification: "suspicious"`, `reason: "Suspeita: 2 eventos independentes de audiência não humana apareceram juntos. (1) um platô: salto de 13,5x na hora 24 (de cerca de 111 para 1500 views/h) sem subida gradual antes e sem queda gradual depois (o patamar se manteve); e queda de 99% em 1 hora na hora 36 (...). O salto e a queda são o mesmo platô e contam como um evento só. (2) 8 horas seguidas a partir da hora 24 com cerca de 1500 views/h, com variação de apenas 0,00% (...)."`.
+
+O corpo traz:
+- `signals`: os três sinais individuais, cada um com `name`, `triggered`, `description` (PT-BR) e `evidence: { hour_index, value, baseline }` (ou `null` quando não disparou).
+- `groups`: os dois **eventos independentes** usados na decisão, `plateau_event` (agrupa `step_spike` e `abrupt_drop`) e `mechanical_repeat`, cada um com `triggered`, `signals` (quais sinais internos dispararam), `start_hour` e `end_hour` (para o platô: hora do salto e hora da queda).
 
 ## Critério
 
@@ -36,17 +40,21 @@ Três sinais, cada um com limiares nomeados em um único arquivo, [`src/threshol
 | `mechanical_repeat` | >= 8 horas seguidas com coeficiente de variação < 2%, ou diferenças consecutivas iguais e não nulas; média mínima de 50 views/h | `MECH_MIN_HOURS`, `MECH_MAX_CV`, `MECH_MIN_MEAN` |
 | `abrupt_drop` | queda >= 80% em 1 h depois de >= 3 h acima de 3x a mediana da série (e perda de pelo menos 50 views/h) | `DROP_*` |
 
-Decisão: **2 ou mais sinais -> `suspicious`; 1 sinal -> `inconclusive`; 0 -> `organic`**; menos de 24 pontos -> `inconclusive`. A ideia é que acusar criador honesto custa mais do que deixar passar um caso duvidoso, então um sinal isolado nunca acusa.
+Os sinais são agrupados por **evento independente**. `step_spike` e `abrupt_drop` descrevem o mesmo platô (salto, patamar, queda), então contam como **um** evento, `plateau_event`. `mechanical_repeat` é o outro evento. Os sinais individuais continuam na resposta para explicar o motivo.
 
-Os limiares vêm da spec do desafio e **não foram ajustados olhando o dataset**. Os mínimos absolutos (+50 views/h, 50 de média) são decisão minha para canal pequeno não disparar por ruído.
+Decisão: **2 eventos independentes (na prática, platô + repetição mecânica) -> `suspicious`; 1 evento (mesmo com os dois sinais do platô) -> `inconclusive`; 0 -> `organic`**; menos de 24 pontos -> `inconclusive`. Acusar criador honesto custa mais do que deixar passar um caso duvidoso, então um evento isolado nunca acusa.
+
+Os limiares foram escolhidos pelo autor, sem ajuste sobre o dataset (o enunciado não define limiares). Os mínimos absolutos (+50 views/h, 50 de média) são decisão minha para canal pequeno não disparar por ruído. Nenhum limiar foi alterado nesta revisão; mudou só a regra de decisão (fusão dos sinais do platô).
 
 ### Pico orgânico x pico comprado
 
-O que separa os dois é o *caminho*, não a altura. Viral de verdade sobe em rampa e/ou decai devagar; o comprado salta de uma vez e fica no patamar (ou some de uma vez). Em `test/classify.test.ts` o mesmo pico de ~1500 views/h aparece nas duas formas: com rampa de 4 h e cauda de 12 h é `organic`; como degrau de 8 h com queda seca é `suspicious`. Um compartilhamento súbito por conta grande (salto de 1 h, cauda longa) também fica `organic`.
+O que separa os dois é o *caminho*, não a altura. Viral de verdade sobe em rampa e/ou decai devagar; o comprado salta de uma vez e fica no patamar (ou some de uma vez). Em `test/classify.test.ts` o mesmo pico de ~1500 views/h aparece nas duas formas: com rampa de 4 h e cauda de 12 h é `organic`; como degrau de 8 h com queda seca é `suspicious`. Um compartilhamento súbito por conta grande (salto de 1 h, cauda longa) também fica `organic`. Já o mesmo pico em degrau, sem rampa e com queda seca, fica `inconclusive` (um platô sozinho), e não `organic`: o classificador não sabe se é compra ou uma live.
 
 ### Caso em que prefere não acusar
 
-Um pico de 1 hora que some na hora seguinte dispara só `step_spike`. Resultado: `inconclusive`, com motivo "Prefiro não acusar: apareceu só um sinal (...). Um sinal isolado não prova nada, porque um vídeo divulgado de repente por uma conta grande também pode dar um salto assim. Só marco como suspeito com pelo menos 2 sinais concordantes." (teste: "um único sinal (pico de 1 hora que some) é inconclusive...").
+Dois exemplos, ambos `inconclusive`:
+- Um pico de 1 hora que some na hora seguinte dispara só `step_spike`. Motivo: "Prefiro não acusar: apareceu só um evento, um platô: salto de ... Um platô isolado também acontece em casos legítimos (uma live, destaque na página inicial, divulgação por conta grande, newsletter semanal), então não basta para acusar. Só marco como suspeito com pelo menos 2 eventos independentes ..." (teste: "um único sinal (pico de 1 hora que some)...").
+- Salto + patamar + queda seca com ruído natural (o que uma live ou um destaque na página inicial produz): os dois sinais disparam, mas são o mesmo platô e contam como um evento (teste: "salto e queda seca do mesmo platô contam como UM evento"). Há testes de regressão com as séries do revisor independente em `test/classify.test.ts` (bloco "platôs legítimos nunca viram suspicious").
 
 ## Dataset e taxas medidas
 
@@ -84,22 +92,27 @@ Famílias legítimas: estável (de 5 a 5000 views/h), crescimento lento, viral c
 
 ### Leitura honesta dos números
 
-- **O zero de falso positivo é fácil de obter aqui.** Eu escrevi o dataset e o classificador; os legítimos são curvas suaves com ruído gaussiano, sem as irregularidades de dados reais (cortes de coleta, picos de reprocessamento, contagem arredondada, canais enormes com variação de 1%). Zero falso positivo no sintético **não** é uma garantia para produção. Os limiares não foram mexidos para chegar a esse número.
-- O que aparece como `inconclusive` entre legítimos é informativo: viral com rampa muito curta (4 h até 20-40x) tem a primeira hora da rampa com salto >= 5x, e dispara `step_spike` sozinho; canais grandes e estáveis às vezes têm 8 horas com variação < 2% por acaso (`mechanical_repeat`). Ambos ficam `inconclusive` por causa da regra de 2 sinais, que é justamente o que protege contra falso positivo. Um legítimo só viraria `suspicious` se juntasse dois sinais por acaso.
-- A taxa de detecção é baixa de propósito: 3 das 8 famílias suspeitas são `inconclusive` por desenho (um só sinal) e 2 são evasivas. É o preço de preferir não acusar. A detecção alta (92% a 100%) nas famílias de 2 ou mais sinais vem de eu ter construído essas famílias com exatamente os sinais que o classificador procura; não diz nada sobre fraude real.
+- **Histórico, para não maquiar.** Primeira versão (cada sinal contava separado, 600 legítimos): FP 0 de 600 (0,00%), inconclusive entre legítimos 20 de 600 (3,33%), detecção 148 de 400 (37,00%). Um revisor independente mostrou que um platô legítimo de 8 a 12 h com queda seca (live, destaque, newsletter semanal) disparava `step_spike` e `abrupt_drop` juntos e virava `suspicious`, porque os dois descrevem o mesmo evento. Corrigi fundindo os dois em `plateau_event` e adicionei ao dataset três famílias legítimas que reproduzem o buraco (`plateau_live_frontpage`, `weekly_event`, `low_volume_plateau`). Com só a fusão, a detecção caiu para 104 de 400 (26,00%); com as novas famílias, os números são os de cima. Nenhum limiar foi mexido.
+- **O FP deixou de ser 0 e isso fica visível.** O falso positivo restante (`weekly_event-004`) é plateau + `mechanical_repeat` por acaso: em 24 h altas com ruído de 8%, uma janela de 8 horas teve variação de 1,25%, abaixo dos 2%. Não reajustei o limiar para sumir com ele. Sobe junto o risco de uma live perfeitamente constante (variação de ~0,3%): ela também é acusada, e há um teste ("limite conhecido") que documenta isso, porque com estes dados uma taxa fixa legítima e uma taxa fixa comprada são iguais.
+- **Os 31,78% de `inconclusive` entre legítimos são o preço de não acusar.** Vêm quase todos dos platôs legítimos novos (live/destaque, evento semanal, canal pequeno), que sempre disparam um evento de platô, e de virais com rampa muito curta (`step_spike` na primeira hora da rampa). Nenhum vira `suspicious` sem um segundo evento independente. Uma resposta `inconclusive` aqui significa "não sei", não "ok".
+- **A detecção caiu e é esperado.** Um pico comprado em degrau **sem repetição mecânica** (`bought_step_plateau_drop`: 0 de 50 detectados agora, antes 46) é indistinguível de um platô legítimo com os dados disponíveis (só views por hora), então fica `inconclusive`. O classificador prefere não acusar a punir criador honesto. O que ainda é acusado é o platô com taxa fixa (`bought_mechanical_plateau`, `combo_all`).
+- **O dataset continua favorável.** Eu escrevi o dataset e o classificador; as famílias legítimas são curvas com ruído gaussiano, sem as irregularidades de dados reais (cortes de coleta, reprocessamentos, contagem arredondada). As famílias suspeitas de 2 eventos foram construídas com exatamente os sinais que o classificador procura, então a detecção alta nelas (100%) não diz nada sobre fraude real. O FP medido é um piso otimista.
 
 ## O que NÃO detecta
 
+- **Pico ou platô comprado sem repetição mecânica**: fica `inconclusive`, nunca `suspicious`. Com views por hora não dá para separar de uma live ou de um destaque na página inicial.
+- **Platô legítimo com taxa perfeitamente constante** (variação < 2% por 8 h): é acusado, porque é igual ao comprado com taxa fixa.
 - **Bots que imitam uma curva orgânica** (rampa e cauda): passam como `organic` (família `bot_mimics_organic`).
 - **Pico distribuído em muitas horas** (compra diluída, sem salto): passa como `organic` (família `diluted_spike`).
 - **Ritmo circadiano**: não é usado. Tráfego sem ciclo dia/noite, que seria indício forte, não é visto (e o ciclo normal não é tratado como suspeito).
 - **Origem das contas**: uma série de views por hora não diz quem assistiu (país, idade da conta, retenção). Isso exige outros dados.
-- Séries com patamar dominante (mais da metade da série em platô) distorcem a mediana usada em `abrupt_drop`.
+- Séries dominadas por um patamar (mais da metade da série em platô) distorcem a mediana usada em `abrupt_drop`.
 - Falsos negativos por ruído: um degrau comprado com ruído alto pode escapar da regra "80% do pico".
 
 ## Decisões minhas além da spec
 
-- Resposta traz também `description` por sinal e `evidence: null` quando não disparou.
+- Resposta traz também `description` por sinal, `evidence: null` quando não disparou e `groups` (eventos independentes, ver Critério).
+- Fusão de `step_spike` + `abrupt_drop` em `plateau_event` (decisão do autor após revisão independente).
 - Mínimos absolutos (+50 views/h de salto, 50 de média, 50 de queda) e janela de rampa de 3 h.
 - Limite de 720 pontos por requisição; lista vazia, não inteiros, negativos e JSON inválido -> 400.
 - `step_spike` olha a mediana das 24 h anteriores (a spec dizia "janela anterior"), exigindo ao menos 6 pontos.

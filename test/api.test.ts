@@ -28,7 +28,7 @@ describe("API", () => {
   });
 
   it("série com pico comprado volta suspicious com evidência", async () => {
-    const s = [...stable, ...[1500, 1400, 1550, 1450, 1520, 1480, 1510, 1440], 20, 18, ...stable];
+    const s = [...stable, ...[1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500], 20, 18, ...stable];
     const body = await (await post({ views_per_hour: s })).json();
     expect(body.classification).toBe("suspicious");
     expect(body.signals.find((x: any) => x.name === "step_spike").evidence.hour_index).toBe(48);

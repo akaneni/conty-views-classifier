@@ -47,5 +47,9 @@ export const DROP_MAX_REMAINING = 0.2;
 export const DROP_MIN_ABSOLUTE = 50;
 
 // --- decisão ---
-/** Sinais concordantes necessários para `suspicious`. Com 1 sinal a resposta é `inconclusive`. */
-export const MIN_SIGNALS_TO_ACCUSE = 2;
+/**
+ * Eventos independentes necessários para `suspicious`. Os sinais step_spike e abrupt_drop
+ * descrevem o mesmo platô e contam como UM evento (`plateau_event`); mechanical_repeat é
+ * o outro. Com 1 evento a resposta é `inconclusive`.
+ */
+export const MIN_GROUPS_TO_ACCUSE = 2;

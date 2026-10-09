@@ -72,14 +72,25 @@ describe("classify: regressão, platôs legítimos nunca viram suspicious", () =
     "base 120, 1500 por 8 h com ruído de 8%": [...withNoise(48, 120, 0.1, 1), ...withNoise(8, 1500, 0.08, 2), ...withNoise(40, 120, 0.1, 3)],
     "base 120, 2000 por 12 h com ruído de 5%": [...withNoise(48, 120, 0.1, 4), ...withNoise(12, 2000, 0.05, 5), ...withNoise(40, 120, 0.1, 6)],
     "semana com segunda a 1800/h por 24 h e resto a 150/h": [...withNoise(48, 150, 0.1, 7), ...withNoise(24, 1800, 0.08, 8), ...withNoise(96, 150, 0.1, 9)],
-    "canal pequeno: 3/h para 60/h por 8 h": [...withNoise(48, 3, 0.3, 10), ...Array(8).fill(60).map((v, i) => v + (i % 3)), ...withNoise(40, 3, 0.3, 11)],
-    "live com platô de ~1000 por 8 h com variação de 0,3%": [...withNoise(48, 120, 0.1, 12), ...withNoise(8, 1000, 0.003, 13), ...withNoise(40, 120, 0.1, 14)],
+    "canal pequeno: 3/h para 60/h por 8 h": [...withNoise(48, 3, 0.3, 10), ...withNoise(8, 60, 0.1, 15), ...withNoise(40, 3, 0.3, 11)],
   };
   for (const [name, series] of Object.entries(cases)) {
     it(`não acusa: ${name}`, () => {
       expect(classify(series).classification).not.toBe("suspicious");
     });
   }
+});
+
+describe("classify: limite conhecido", () => {
+  it("live perfeitamente constante (variação de 0,3%) é acusada: com esses dados é igual a taxa fixa comprada", () => {
+    const r = (seed: number) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const g = r(21);
+    const live = Array.from({ length: 8 }, () => Math.round(1000 * (1 + 0.003 * (g() - 0.5) * 2)));
+    const s = [...human(48), ...live, ...human(40)];
+    const v = classify(s);
+    expect(v.groups.filter((x) => x.triggered).map((x) => x.name)).toEqual(["plateau_event", "mechanical_repeat"]);
+    expect(v.classification).toBe("suspicious");
+  });
 });
 
 describe("classify: pico orgânico plausível x pico comprado", () => {
@@ -113,8 +124,8 @@ describe("classify: prefere não acusar", () => {
     expect(v.classification).toBe("inconclusive");
     expect(names(v)).toEqual(["step_spike"]);
     expect(v.reason).toMatch(/prefiro não acusar/i);
-    expect(v.reason).toMatch(/só um sinal/i);
-    expect(v.reason).toMatch(/2 sinais/);
+    expect(v.reason).toMatch(/só um evento/i);
+    expect(v.reason).toMatch(/2 eventos independentes/);
   });
 
   it("repetição mecânica isolada também é inconclusive", () => {

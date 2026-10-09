@@ -58,10 +58,18 @@ function plateauText(step: Signal, drop: Signal): string {
     if (samePlateau(step, drop)) {
       return `um platô: ${step.description}; e ${drop.description}. O salto e a queda são o mesmo platô e contam como um evento só`;
     }
+    const stepHour = step.evidence!.hour_index;
+    const dropHour = drop.evidence!.hour_index;
+    if (dropHour < stepHour) {
+      return (
+        `eventos separados, porque a queda (hora ${dropHour}) vem antes do salto (hora ${stepHour}): ` +
+        `${step.description}; e, em outro trecho, ${drop.description}. Para não acusar a mais, os dois contam como um evento só`
+      );
+    }
     return (
-      `dois platôs separados (a queda não vem logo depois do salto, então não formam um único platô): ` +
-      `${step.description}; e, em outro trecho, ${drop.description}. ` +
-      `Para não acusar a mais, os dois contam como um evento só`
+      `salto (hora ${stepHour}) e queda (hora ${dropHour}) distantes demais (mais de ${T.PLATEAU_MAX_HOURS} h) para eu tratá-los como um platô só; ` +
+      `pode ser um platô muito longo ou dois eventos, e não afirmo qual: ` +
+      `${step.description}; e ${drop.description}. Para não acusar a mais, os dois contam como um evento só`
     );
   }
   return `um platô: ${(step.triggered ? step : drop).description}`;

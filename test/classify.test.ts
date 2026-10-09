@@ -135,6 +135,11 @@ describe("classify: prefere não acusar", () => {
     expect(names(v)).toEqual(["mechanical_repeat"]);
   });
 
+  it("série curta usa o plural certo (1 hora, 2 horas)", () => {
+    expect(classify([5]).reason).toContain("recebi 1 hora e");
+    expect(classify([5, 6]).reason).toContain("recebi 2 horas e");
+  });
+
   it("série curta é inconclusive com motivo de série curta", () => {
     const v = classify(human(10));
     expect(v.classification).toBe("inconclusive");
